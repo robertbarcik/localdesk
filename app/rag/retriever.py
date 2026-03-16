@@ -1,9 +1,11 @@
+from typing import Optional
+
 import chromadb
 
 from app.config import VECTORSTORE_COLLECTION, VECTORSTORE_PATH
 from app.rag.embeddings import embed_query
 
-_chroma_client: chromadb.ClientAPI | None = None
+_chroma_client: Optional[chromadb.ClientAPI] = None
 
 
 def _get_collection() -> chromadb.Collection:

@@ -24,12 +24,11 @@ _PII_PATTERNS = {
 
 # Prompt injection patterns
 _INJECTION_PATTERNS = [
-    re.compile(r"ignore\s+(all\s+)?previous\s+instructions", re.IGNORECASE),
-    re.compile(r"ignore\s+(all\s+)?prior\s+instructions", re.IGNORECASE),
+    re.compile(r"ignore\s+(all\s+)?(your\s+|previous\s+|prior\s+)?instructions", re.IGNORECASE),
     re.compile(r"you\s+are\s+now\s+", re.IGNORECASE),
     re.compile(r"forget\s+(all\s+)?(your\s+)?instructions", re.IGNORECASE),
     re.compile(r"disregard\s+(all\s+)?(your\s+)?(previous\s+)?instructions", re.IGNORECASE),
-    re.compile(r"(reveal|show|print|output|tell\s+me)\s+(your\s+)?(system\s+)?prompt", re.IGNORECASE),
+    re.compile(r"(reveal|show|print|output|tell\s+me)\s+(the\s+|your\s+)?(system\s+)?prompt", re.IGNORECASE),
     re.compile(r"what\s+(is|are)\s+your\s+(system\s+)?instructions", re.IGNORECASE),
     re.compile(r"act\s+as\s+(if\s+you\s+are|a)\s+", re.IGNORECASE),
     re.compile(r"pretend\s+(you\s+are|to\s+be)\s+", re.IGNORECASE),

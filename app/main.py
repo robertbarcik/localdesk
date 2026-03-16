@@ -145,6 +145,17 @@ async def chat(request: Request) -> JSONResponse:
             break
 
     assistant_content = choice.message.content or ""
+
+    # If the model ended with tool calls and no text response, force a final response
+    if not assistant_content and all_tool_calls:
+        resp = client.chat.completions.create(
+            model=model,
+            messages=messages,
+            temperature=0.3,
+            max_tokens=1024,
+        )
+        assistant_content = resp.choices[0].message.content or ""
+
     messages.append({"role": "assistant", "content": assistant_content})
 
     # Keep conversation manageable (last 20 messages + system)

@@ -4,6 +4,16 @@ from pathlib import Path
 import yaml
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
+
+# Load .env file if present
+_env_path = PROJECT_ROOT / ".env"
+if _env_path.exists():
+    for line in _env_path.read_text().splitlines():
+        line = line.strip()
+        if line and not line.startswith("#") and "=" in line:
+            key, val = line.split("=", 1)
+            os.environ.setdefault(key.strip(), val.strip())
+
 _config_path = PROJECT_ROOT / "config.yaml"
 
 with open(_config_path) as f:
