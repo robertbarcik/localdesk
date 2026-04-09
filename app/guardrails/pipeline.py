@@ -85,7 +85,11 @@ def post_process(
         result.guardrail_triggers.extend(output_validation.flags)
 
     # Layer 3: LLM judge
-    context_text = "\n\n".join(c.get("text", "") for c in context_chunks)
+    # Include both RAG chunks and tool results as context for the judge
+    context_parts = [c.get("text", "") for c in context_chunks]
+    for tc in tool_calls:
+        context_parts.append(f"[Tool: {tc.get('name', '')}] {tc.get('result', '')}")
+    context_text = "\n\n".join(context_parts)
     verdict = judge_response(sanitized_input, model_response, context_text)
     result.judge_verdict = verdict
 

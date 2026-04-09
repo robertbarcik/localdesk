@@ -7,10 +7,14 @@ source venv/bin/activate
 echo "=== mu ==="
 echo ""
 
-# Check if Ollama is running (needed for embeddings, and local LLM mode)
+# Check which mode is configured
+MODE=$(python3 -c "import yaml; print(yaml.safe_load(open('config.yaml'))['mode'])")
+echo "Mode: $MODE"
+
+# Check if Ollama is running (needed for embeddings always, and LLM in local mode)
 if ! curl -s http://localhost:11434/api/tags >/dev/null 2>&1; then
     echo "Warning: Ollama not detected at localhost:11434"
-    echo "Start Ollama and ensure nomic-embed-text is pulled."
+    echo "Start Ollama (required for embeddings)."
     echo ""
 fi
 

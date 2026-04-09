@@ -2,11 +2,11 @@
 
 ## What is this?
 
-LocalDesk is a fully local AI-powered IT service desk prototype. It demonstrates RAG, function calling, and security guardrails running entirely on a laptop with zero cloud dependency. The target audience is an EU IT services company evaluating local AI deployment for their customers.
+LocalDesk is an AI-powered IT service desk prototype. It demonstrates RAG, function calling, and security guardrails running on a laptop — either fully locally via Ollama or via cloud (OpenRouter). The target audience is an EU IT services company evaluating AI deployment for their customers.
 
 ## Tech Stack
 
-- **LLM**: Qwen3.5-4B via llama-server (llama.cpp) with `--tool-call-parser qwen3_coder`
+- **LLM**: Qwen 3 (3B active) via Ollama (local) or OpenRouter (cloud)
 - **Embeddings**: nomic-embed-text via Ollama
 - **Vector store**: ChromaDB (persistent, local)
 - **Backend**: FastAPI + OpenAI Python SDK
@@ -21,7 +21,7 @@ LocalDesk is a fully local AI-powered IT service desk prototype. It demonstrates
 # First-time setup (creates venv, installs deps, seeds DB, ingests KB)
 ./setup.sh
 
-# Start the web UI (check llama-server and Ollama are running first)
+# Start the web UI (Ollama must be running for embeddings)
 ./run.sh
 
 # Or use the CLI client (connects via MCP server)
@@ -29,8 +29,8 @@ python cli.py
 ```
 
 **Prerequisites:**
-1. llama-server running: `llama-server -m <qwen3.5-4b-q4_k_m.gguf> --port 8080 --tool-call-parser qwen3_coder`
-2. Ollama running with nomic-embed-text pulled: `ollama pull nomic-embed-text`
+1. Ollama running with models pulled: `ollama pull nomic-embed-text && ollama pull qwen3:1.7b`
+2. For cloud mode: OpenRouter API key in `.env`
 
 ## Three Interfaces
 
@@ -53,10 +53,12 @@ User Input
 
 ## Key Design Decisions
 
-- **llama-server over Ollama for LLM**: Ollama doesn't support `--tool-call-parser qwen3_coder` which is required for Qwen 3.5's native function calling format. Ollama is still used for embeddings (lightweight, works fine).
-- **Same-model judge**: The LLM judge uses the same Qwen3.5-4B model. This keeps memory usage minimal (no second model loaded) and is sufficient for the demo.
-- **No Docker**: Target demo runs on a MacBook Air with 16GB during screen sharing. Docker adds overhead we can't afford.
-- **Custom frontend over Chainlit/Gradio**: Full control over branding and polish. The UI is a single HTML file with inline CSS/JS — zero build step, zero npm dependencies.
+- **Ollama for everything local**: Both the LLM (Qwen 3 (3B active)) and embeddings (nomic-embed-text) run through Ollama. Earlier versions required llama-server for Qwen 3.5's tool calling format, but Qwen 3 has native tool calling support in Ollama.
+- **Same-model judge**: The LLM judge uses the same Qwen 3 (3B active) model. This keeps memory usage minimal (no second model loaded) and is sufficient for the demo.
+- **Cloud mode for demos**: During screen sharing on a MacBook Air 16GB, running the LLM locally can throttle the machine. Cloud mode uses OpenRouter with the same model family so the demo stays smooth.
+- **Avoid Gemma 3n on OpenRouter**: Gemma 3n models reject system prompts on OpenRouter. Regular Gemma 3 works, but we use Qwen 3 for consistency across local/cloud.
+- **No Docker**: Target demo runs directly on macOS with a Python venv. Docker adds overhead we can't afford.
+- **Custom frontend over Chainlit/Gradio**: Full control over branding and polish. The UI ("mu") is a single HTML file with inline CSS/JS — zero build step, zero npm dependencies.
 - **Local/cloud switch via config.yaml**: Swap `mode: "local"` to `mode: "cloud"` to use OpenRouter. Same OpenAI SDK client, just different base_url/model/api_key.
 
 ## File Structure

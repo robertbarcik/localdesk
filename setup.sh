@@ -15,12 +15,13 @@ echo "Activating venv and installing dependencies..."
 source venv/bin/activate
 pip install -q -r requirements.txt
 
-# Ensure Ollama is running and has the embedding model
-echo "Checking Ollama embedding model..."
+# Ensure Ollama is running and has required models
+echo "Pulling Ollama models..."
 if command -v ollama &>/dev/null; then
     ollama pull nomic-embed-text 2>/dev/null || echo "Note: Could not pull nomic-embed-text. Make sure Ollama is running."
+    ollama pull qwen3:1.7b 2>/dev/null || echo "Note: Could not pull qwen3:1.7b. Make sure Ollama is running."
 else
-    echo "Warning: Ollama not found. Install Ollama and run 'ollama pull nomic-embed-text'"
+    echo "Warning: Ollama not found. Install from https://ollama.com and re-run setup."
 fi
 
 # Seed database
@@ -34,3 +35,4 @@ python scripts/ingest.py
 echo ""
 echo "=== Setup complete! ==="
 echo "Run ./run.sh to start the application."
+echo "Open http://localhost:7860 in your browser."
