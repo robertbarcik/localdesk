@@ -1,6 +1,7 @@
 """OpenTelemetry tracing setup — exports spans to Dynatrace via OTLP/HTTP."""
 
 import logging
+import os
 
 from opentelemetry import trace
 from opentelemetry.sdk.resources import Resource
@@ -10,11 +11,10 @@ from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExport
 
 logger = logging.getLogger(__name__)
 
-_DT_ENDPOINT = "https://ksl51844.live.dynatrace.com/api/v2/otlp/v1/traces"
-_DT_API_TOKEN = (
-    "dt0c01.CM2P657FTNSOO2V62ZE3I4MS"
-    ".QUQ3DHOQX3VLFHDROBCVIONSDD3P65KRXZPOCRUX6Y3OTT67OYV2C4SWL6PX7QZN"
+_DT_ENDPOINT = os.environ.get(
+    "DT_ENDPOINT", "https://localhost:9411/api/v2/otlp/v1/traces"
 )
+_DT_API_TOKEN = os.environ.get("DT_API_TOKEN", "")
 
 
 def init_tracing() -> trace.Tracer:
