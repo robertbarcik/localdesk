@@ -3,452 +3,1490 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LocalDesk — IT Support</title>
+    <title>mu</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
         :root {
-            --primary: #2563eb;
-            --primary-light: #dbeafe;
-            --bg: #f8fafc;
+            --bg: #faf9f7;
             --surface: #ffffff;
-            --text: #1e293b;
-            --text-muted: #64748b;
-            --border: #e2e8f0;
-            --success: #059669;
-            --warning: #d97706;
-            --radius: 12px;
+            --text: #1a1a1a;
+            --text-muted: #999;
+            --accent-light: #f5f5f3;
+            --border: rgba(0,0,0,0.06);
+            --shadow: 0 2px 20px rgba(0,0,0,0.06);
+            --shadow-active: 0 4px 32px rgba(0,0,0,0.10);
+            --radius: 14px;
+            --thread-width: 360px;
+        }
+
+        html, body {
+            height: 100%;
+            width: 100%;
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: var(--bg);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif;
+            background: linear-gradient(150deg, #fafaf8 0%, #f7f6f2 100%);
             color: var(--text);
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
+            overflow: auto;
+            cursor: crosshair;
+            position: relative;
+            min-height: 100vh;
         }
 
-        /* Header */
-        .header {
-            background: var(--surface);
-            border-bottom: 1px solid var(--border);
-            padding: 12px 24px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            flex-shrink: 0;
+        /* Aurora lights background */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            z-index: -1;
+            background:
+                radial-gradient(ellipse 80% 60% at 20% 50%, rgba(120, 200, 160, 0.12) 0%, transparent 60%),
+                radial-gradient(ellipse 70% 50% at 80% 20%, rgba(140, 180, 220, 0.10) 0%, transparent 60%),
+                radial-gradient(ellipse 90% 50% at 50% 80%, rgba(180, 160, 200, 0.08) 0%, transparent 60%);
+            animation: aurora 25s ease-in-out infinite alternate;
+            pointer-events: none;
+            will-change: transform, filter;
         }
-        .header-logo {
-            width: 36px; height: 36px;
-            background: var(--primary);
-            border-radius: 8px;
-            display: flex; align-items: center; justify-content: center;
-            color: white; font-weight: 700; font-size: 18px;
-        }
-        .header-title { font-size: 18px; font-weight: 600; }
-        .header-subtitle { font-size: 12px; color: var(--text-muted); margin-top: 1px; }
-        .header-right { margin-left: auto; }
-        .status-dot {
-            width: 8px; height: 8px; border-radius: 50%;
-            background: var(--success); display: inline-block;
-            margin-right: 6px; animation: pulse 2s infinite;
-        }
-        .status-text { font-size: 12px; color: var(--text-muted); }
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
+        @keyframes aurora {
+            0%   { filter: hue-rotate(0deg);   transform: scale(1)    translateX(0);   opacity: 0.8; }
+            25%  { filter: hue-rotate(20deg);  transform: scale(1.08) translateX(-3%); opacity: 1;   }
+            50%  { filter: hue-rotate(-15deg); transform: scale(0.96) translateX(2%);  opacity: 0.9; }
+            75%  { filter: hue-rotate(25deg);  transform: scale(1.05) translateY(-2%); opacity: 1;   }
+            100% { filter: hue-rotate(10deg);  transform: scale(1)    translateY(1%);  opacity: 0.85;}
         }
 
-        /* Chat area */
-        .chat-container {
-            flex: 1;
-            overflow-y: auto;
-            padding: 24px;
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
+        /* Brand watermark */
+        #brand {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 56px;
+            font-weight: 200;
+            letter-spacing: 6px;
+            color: #b0bda7;
+            pointer-events: auto;
+            cursor: default;
+            user-select: none;
+            padding: 16px 24px;
+            transition: opacity 1s ease, color 1.2s ease, text-shadow 1.2s ease;
+            text-shadow: none;
+            z-index: 0;
         }
 
-        .message {
-            max-width: 720px;
-            width: 100%;
-            margin: 0 auto;
-            display: flex;
-            gap: 12px;
-            animation: fadeIn 0.3s ease;
+        /* Security pulse states */
+        #brand.pulsing {
+            cursor: pointer;
         }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(8px); }
-            to { opacity: 1; transform: translateY(0); }
+        #brand.pulse-pass {
+            color: #5a9a5e;
+            text-shadow:
+                0 0 24px rgba(90, 154, 94, 0.7),
+                0 0 60px rgba(90, 154, 94, 0.35),
+                0 0 120px rgba(90, 154, 94, 0.15);
+            animation: brandBreathe 3s ease;
         }
-
-        .message.user { flex-direction: row-reverse; }
-
-        .message-avatar {
-            width: 32px; height: 32px; border-radius: 50%;
-            flex-shrink: 0; display: flex; align-items: center;
-            justify-content: center; font-size: 14px; font-weight: 600;
+        #brand.pulse-flag {
+            color: #b8952e;
+            text-shadow:
+                0 0 24px rgba(184, 149, 46, 0.7),
+                0 0 60px rgba(184, 149, 46, 0.35),
+                0 0 120px rgba(184, 149, 46, 0.15);
+            animation: brandBreathe 3s ease;
         }
-        .message.assistant .message-avatar {
-            background: var(--primary); color: white;
+        #brand.pulse-block {
+            color: #c05050;
+            text-shadow:
+                0 0 24px rgba(192, 80, 80, 0.75),
+                0 0 60px rgba(192, 80, 80, 0.4),
+                0 0 120px rgba(192, 80, 80, 0.18);
+            animation: brandBreathe 3s ease;
         }
-        .message.user .message-avatar {
-            background: #e2e8f0; color: var(--text);
-        }
-
-        .message-content {
-            padding: 12px 16px;
-            border-radius: var(--radius);
-            line-height: 1.5;
-            font-size: 14px;
-            white-space: pre-wrap;
-            word-wrap: break-word;
-        }
-        .message.assistant .message-content {
-            background: var(--surface);
-            border: 1px solid var(--border);
-        }
-        .message.user .message-content {
-            background: var(--primary);
-            color: white;
+        @keyframes brandBreathe {
+            0%   { transform: translate(-50%, -50%) scale(1); }
+            25%  { transform: translate(-50%, -50%) scale(1.12); }
+            100% { transform: translate(-50%, -50%) scale(1); }
         }
 
-        .message-time {
+        #security-msg {
+            position: fixed;
+            top: calc(50% + 40px);
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 13px;
+            font-weight: 300;
+            letter-spacing: 4px;
+            color: transparent;
+            pointer-events: auto;
+            user-select: none;
+            transition: color 1s ease;
+            z-index: 0;
+            white-space: nowrap;
+        }
+        #security-msg.msg-pass  { color: rgba(90, 154, 94, 0.85); }
+        #security-msg.msg-flag  { color: rgba(184, 149, 46, 0.85); }
+        #security-msg.msg-block { color: rgba(192, 80, 80, 0.85); }
+
+        /* Security detail panel — dark, "system level" look */
+        #security-panel-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 90;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        #security-panel-overlay.open {
+            pointer-events: auto;
+            opacity: 1;
+        }
+        #security-panel {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0.95);
+            background: rgba(18, 22, 18, 0.94);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            color: rgba(255, 255, 255, 0.8);
+            border-radius: 16px;
+            border: 1px solid rgba(255,255,255,0.06);
+            padding: 32px 36px;
+            width: 340px;
+            z-index: 100;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.35s ease, transform 0.35s ease;
+            font-size: 12px;
+            line-height: 1.6;
+        }
+        #security-panel.open {
+            opacity: 1;
+            pointer-events: auto;
+            transform: translate(-50%, -50%) scale(1);
+        }
+        .sp-title {
             font-size: 11px;
-            color: var(--text-muted);
-            margin-top: 4px;
+            letter-spacing: 5px;
+            text-transform: uppercase;
+            color: rgba(255,255,255,0.35);
+            text-align: center;
+            margin-bottom: 24px;
         }
-        .message.user .message-time { text-align: right; }
-
-        /* Status indicator */
-        .status-indicator {
-            max-width: 720px;
-            width: 100%;
-            margin: 0 auto;
+        .sp-gate {
+            margin-bottom: 18px;
+            cursor: pointer;
+            padding: 8px 10px;
+            margin-left: -10px;
+            margin-right: -10px;
+            border-radius: 8px;
+            transition: background 0.2s;
+        }
+        .sp-gate:hover {
+            background: rgba(255,255,255,0.04);
+        }
+        .sp-gate-header {
+            font-size: 11px;
+            letter-spacing: 2px;
+            color: rgba(255,255,255,0.4);
+            margin-bottom: 6px;
+        }
+        .sp-gate-status {
             display: flex;
             align-items: center;
             gap: 8px;
-            padding: 8px 16px;
-            font-size: 13px;
-            color: var(--text-muted);
-            animation: fadeIn 0.2s ease;
+            font-size: 12.5px;
         }
-        .typing-dots span {
-            display: inline-block;
-            width: 6px; height: 6px;
+        .sp-gate-explain {
+            margin-top: 8px;
+            font-size: 11.5px;
+            line-height: 1.6;
+            color: rgba(255,255,255,0.45);
+            padding-left: 15px;
+            border-left: 1px solid rgba(255,255,255,0.08);
+            animation: explainIn 0.3s ease;
+        }
+        @keyframes explainIn {
+            from { opacity: 0; transform: translateY(-4px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .sp-dot {
+            width: 7px;
+            height: 7px;
             border-radius: 50%;
-            background: var(--text-muted);
-            animation: typing 1.4s infinite;
-            margin-right: 3px;
+            flex-shrink: 0;
         }
-        .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
-        .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
-        @keyframes typing {
-            0%, 60%, 100% { opacity: 0.3; transform: translateY(0); }
-            30% { opacity: 1; transform: translateY(-3px); }
+        .sp-dot-pass  { background: #5a9a5e; box-shadow: 0 0 8px rgba(90,154,94,0.5); }
+        .sp-dot-flag  { background: #b8952e; box-shadow: 0 0 8px rgba(184,149,46,0.5); }
+        .sp-dot-block { background: #c05050; box-shadow: 0 0 8px rgba(192,80,80,0.5); }
+        .sp-detail {
+            font-size: 11px;
+            color: rgba(255,255,255,0.3);
+            margin-left: 15px;
+            margin-top: 2px;
+        }
+        .sp-close {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 11px;
+            letter-spacing: 2px;
+            color: rgba(255,255,255,0.25);
+            cursor: pointer;
+            transition: color 0.15s;
+        }
+        .sp-close:hover { color: rgba(255,255,255,0.6); }
+
+        #hint {
+            position: fixed;
+            bottom: 48px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 13px;
+            font-weight: 300;
+            color: rgba(0,0,0,0.16);
+            pointer-events: none;
+            user-select: none;
+            opacity: 0;
+            transition: opacity 0.8s ease;
+            z-index: 0;
+        }
+        #hint.visible { opacity: 1; }
+
+        /* ── Thread ── */
+        .thread {
+            position: absolute;
+            width: var(--thread-width);
+            background: var(--surface);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            display: flex;
+            flex-direction: column;
+            z-index: 1;
+            transition: opacity 0.25s ease, box-shadow 0.25s ease;
+            animation: threadIn 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+            cursor: default;
         }
 
-        /* Incident card */
+        @keyframes threadIn {
+            from { opacity: 0; transform: scale(0.92) translateY(6px); }
+            to   { opacity: 1; transform: scale(1) translateY(0); }
+        }
+
+        .thread.inactive {
+            opacity: 0.5;
+            box-shadow: var(--shadow);
+        }
+        .thread.active {
+            opacity: 1;
+            box-shadow: var(--shadow-active);
+            z-index: 2;
+        }
+
+        /* Drag handle */
+        .thread-drag-handle {
+            height: 24px;
+            cursor: grab;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .thread-drag-handle::after {
+            content: '';
+            width: 28px;
+            height: 3px;
+            background: rgba(0,0,0,0.07);
+            border-radius: 2px;
+        }
+
+        /* Close button */
+        .thread-close {
+            position: absolute;
+            top: 6px;
+            right: 8px;
+            width: 22px;
+            height: 22px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 15px;
+            color: var(--text-muted);
+            cursor: pointer;
+            opacity: 0;
+            transition: opacity 0.15s;
+            border-radius: 50%;
+            z-index: 3;
+        }
+        .thread:hover .thread-close { opacity: 0.6; }
+        .thread-close:hover {
+            opacity: 1 !important;
+            background: var(--accent-light);
+        }
+
+        /* Messages */
+        .thread-messages {
+            padding: 4px 16px 8px;
+            overflow-y: auto;
+            max-height: 420px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            min-height: 0;
+        }
+
+        .msg {
+            font-size: 13.5px;
+            line-height: 1.55;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            animation: msgIn 0.25s ease;
+        }
+        @keyframes msgIn {
+            from { opacity: 0; transform: translateY(4px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .msg-user { text-align: right; }
+        .msg-user .msg-bubble {
+            display: inline-block;
+            background: var(--accent-light);
+            padding: 7px 12px;
+            border-radius: 10px 10px 2px 10px;
+            max-width: 85%;
+            text-align: left;
+        }
+
+        .msg-assistant .msg-bubble {
+            padding: 4px 2px;
+            color: #444;
+            white-space: normal;
+        }
+        .msg-assistant .msg-bubble strong { font-weight: 600; }
+        .msg-assistant .msg-bubble em { font-style: italic; }
+        .msg-assistant .msg-bubble code {
+            background: #f5f5f3;
+            padding: 1px 5px;
+            border-radius: 3px;
+            font-size: 12px;
+            font-family: 'SF Mono', 'Menlo', monospace;
+        }
+        .msg-assistant .msg-bubble pre {
+            background: #f5f5f3;
+            padding: 8px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            overflow-x: auto;
+            margin: 4px 0;
+            white-space: pre-wrap;
+        }
+        .msg-assistant .msg-bubble pre code {
+            background: none;
+            padding: 0;
+            border-radius: 0;
+        }
+
+        /* Shimmer status while generating */
+        .status-shimmer {
+            font-size: 12px;
+            font-weight: 400;
+            padding: 4px 2px;
+            background: linear-gradient(90deg, #ccc 0%, #888 45%, #ccc 55%, #ccc 100%);
+            background-size: 300% 100%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: shimmer 5s ease-in-out infinite;
+        }
+        @keyframes shimmer {
+            0%   { background-position: 100% 0; }
+            50%  { background-position: -100% 0; }
+            100% { background-position: 100% 0; }
+        }
+
+        /* Thread input */
+        .thread-input {
+            padding: 6px 16px 14px;
+            border-top: 1px solid var(--border);
+        }
+        .thread-input input {
+            width: 100%;
+            border: none;
+            outline: none;
+            font-size: 13.5px;
+            font-family: inherit;
+            background: transparent;
+            color: var(--text);
+            padding: 6px 0;
+            cursor: text;
+        }
+        .thread-input input::placeholder {
+            color: rgba(0,0,0,0.22);
+            font-weight: 300;
+        }
+
+        /* Hint chips (inside new thread) */
+        .thread-hints {
+            padding: 2px 16px 10px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+        }
+        .thread-hint {
+            font-size: 11px;
+            color: var(--text-muted);
+            background: var(--accent-light);
+            border: none;
+            padding: 4px 10px;
+            border-radius: 14px;
+            cursor: pointer;
+            transition: color 0.15s, opacity 0.25s ease;
+            font-family: inherit;
+        }
+        .thread-hint:hover { color: var(--text); }
+
+        /* Guardrail badge */
+        .guardrail-badge {
+            display: inline-block;
+            font-size: 10px;
+            padding: 1px 6px;
+            border-radius: 3px;
+            margin-top: 4px;
+        }
+        .guardrail-pass  { background: #f0fdf4; color: #16a34a; }
+        .guardrail-flag   { background: #fefce8; color: #ca8a04; }
+        .guardrail-block  { background: #fef2f2; color: #dc2626; }
+
+        /* Incident card (compact) */
         .incident-card {
-            background: var(--surface);
+            background: #fafafa;
             border: 1px solid var(--border);
-            border-left: 4px solid var(--primary);
-            border-radius: var(--radius);
-            padding: 16px;
-            margin-top: 8px;
+            border-left: 3px solid var(--text);
+            border-radius: 8px;
+            padding: 10px 12px;
+            margin-top: 6px;
+            font-size: 12px;
         }
         .incident-card h4 {
-            font-size: 14px;
-            margin-bottom: 8px;
-            color: var(--primary);
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 4px;
         }
         .incident-card .field {
             display: flex;
-            gap: 8px;
-            font-size: 13px;
-            padding: 3px 0;
+            gap: 6px;
+            padding: 2px 0;
         }
         .incident-card .field-label {
             font-weight: 600;
-            min-width: 80px;
+            min-width: 65px;
             color: var(--text-muted);
         }
-        .incident-card .badge {
+        .badge {
             display: inline-block;
-            padding: 2px 8px;
-            border-radius: 4px;
-            font-size: 11px;
+            padding: 1px 6px;
+            border-radius: 3px;
+            font-size: 10px;
             font-weight: 600;
             text-transform: uppercase;
         }
         .badge-critical { background: #fef2f2; color: #dc2626; }
-        .badge-high { background: #fff7ed; color: #ea580c; }
-        .badge-medium { background: #fefce8; color: #ca8a04; }
-        .badge-low { background: #f0fdf4; color: #16a34a; }
-        .badge-open { background: var(--primary-light); color: var(--primary); }
+        .badge-high     { background: #fff7ed; color: #ea580c; }
+        .badge-medium   { background: #fefce8; color: #ca8a04; }
+        .badge-low      { background: #f0fdf4; color: #16a34a; }
+        .badge-open     { background: #f0f4ff; color: #2563eb; }
 
-        /* Input area */
-        .input-container {
-            background: var(--surface);
-            border-top: 1px solid var(--border);
-            padding: 16px 24px;
-            flex-shrink: 0;
+        /* Dragging state */
+        .thread.dragging {
+            opacity: 0.85;
+            cursor: grabbing;
         }
-        .input-wrapper {
-            max-width: 720px;
-            margin: 0 auto;
+        .thread.dragging .thread-drag-handle { cursor: grabbing; }
+
+        /* ── Monitor widget ── */
+        #monitor {
+            position: fixed;
+            bottom: 16px;
+            left: 16px;
+            font-size: 10px;
+            font-family: 'SF Mono', 'Menlo', 'Consolas', monospace;
+            color: rgba(0,0,0,0.28);
+            line-height: 1.7;
+            z-index: 0;
+            pointer-events: none;
+            user-select: none;
+        }
+        #monitor .mon-row {
             display: flex;
-            gap: 12px;
-            align-items: flex-end;
+            align-items: center;
+            gap: 6px;
         }
-        .input-wrapper textarea {
-            flex: 1;
-            border: 1px solid var(--border);
-            border-radius: var(--radius);
-            padding: 12px 16px;
-            font-size: 14px;
-            font-family: inherit;
-            resize: none;
-            outline: none;
-            min-height: 44px;
-            max-height: 120px;
-            line-height: 1.4;
-            transition: border-color 0.2s;
-        }
-        .input-wrapper textarea:focus {
-            border-color: var(--primary);
-        }
-        .send-btn {
-            background: var(--primary);
-            color: white;
-            border: none;
-            border-radius: var(--radius);
-            width: 44px; height: 44px;
-            cursor: pointer;
-            display: flex; align-items: center; justify-content: center;
-            transition: background 0.2s;
+        #monitor .mon-dot {
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
             flex-shrink: 0;
         }
-        .send-btn:hover { background: #1d4ed8; }
-        .send-btn:disabled { background: #94a3b8; cursor: not-allowed; }
-        .send-btn svg { width: 20px; height: 20px; }
+        #monitor .mon-dot-cloud { background: #7a9ec9; }
+        #monitor .mon-dot-local { background: #8aab7f; }
+        #monitor svg {
+            display: block;
+            margin-top: 4px;
+        }
 
-        /* Welcome message */
-        .welcome {
-            max-width: 720px;
-            width: 100%;
-            margin: 40px auto 0;
-            text-align: center;
-            padding: 0 24px;
-        }
-        .welcome h2 { font-size: 22px; margin-bottom: 8px; }
-        .welcome p { color: var(--text-muted); font-size: 14px; line-height: 1.6; }
-        .welcome-hints {
-            display: flex; flex-wrap: wrap; gap: 8px;
-            justify-content: center; margin-top: 20px;
-        }
-        .hint-chip {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 20px;
-            padding: 8px 16px;
-            font-size: 13px;
+        /* Dashboard toggle */
+        #dash-toggle {
+            position: fixed;
+            bottom: 16px;
+            right: 16px;
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            border: 1px solid rgba(0,0,0,0.08);
+            background: rgba(255,255,255,0.7);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
             cursor: pointer;
-            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            color: rgba(0,0,0,0.35);
+            transition: color 0.2s, background 0.2s, border-color 0.2s;
+            z-index: 50;
         }
-        .hint-chip:hover {
-            border-color: var(--primary);
-            color: var(--primary);
+        #dash-toggle:hover {
+            color: rgba(0,0,0,0.6);
+            background: rgba(255,255,255,0.9);
+            border-color: rgba(0,0,0,0.15);
+        }
+        #dash-toggle.active {
+            color: rgba(255,255,255,0.8);
+            background: rgba(18, 22, 18, 0.85);
+            border-color: rgba(255,255,255,0.1);
         }
 
-        /* Guardrail badge */
-        .guardrail-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-            font-size: 11px;
-            padding: 2px 8px;
-            border-radius: 4px;
-            margin-top: 6px;
+        /* Dashboard panel */
+        #dashboard-panel {
+            position: fixed;
+            bottom: 56px;
+            right: 16px;
+            width: 300px;
+            max-height: 70vh;
+            overflow-y: auto;
+            background: rgba(18, 22, 18, 0.94);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            color: rgba(255,255,255,0.8);
+            border-radius: 16px;
+            border: 1px solid rgba(255,255,255,0.06);
+            padding: 24px 28px;
+            z-index: 50;
+            opacity: 0;
+            pointer-events: none;
+            transform: translateY(8px) scale(0.96);
+            transition: opacity 0.3s ease, transform 0.3s ease;
         }
-        .guardrail-pass { background: #f0fdf4; color: #16a34a; }
-        .guardrail-flag { background: #fefce8; color: #ca8a04; }
-        .guardrail-block { background: #fef2f2; color: #dc2626; }
+        #dashboard-panel.open {
+            opacity: 1;
+            pointer-events: auto;
+            transform: translateY(0) scale(1);
+        }
+        .dash-title {
+            font-size: 11px;
+            letter-spacing: 5px;
+            text-transform: uppercase;
+            color: rgba(255,255,255,0.35);
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .dash-total {
+            text-align: center;
+            font-size: 36px;
+            font-weight: 200;
+            letter-spacing: 2px;
+            color: rgba(255,255,255,0.7);
+            margin-bottom: 4px;
+        }
+        .dash-total-label {
+            text-align: center;
+            font-size: 10px;
+            letter-spacing: 3px;
+            color: rgba(255,255,255,0.25);
+            margin-bottom: 20px;
+        }
+        .dash-section {
+            margin-bottom: 16px;
+        }
+        .dash-section-title {
+            font-size: 10px;
+            letter-spacing: 2px;
+            color: rgba(255,255,255,0.3);
+            margin-bottom: 8px;
+        }
+        .dash-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 6px;
+            font-size: 12px;
+        }
+        .dash-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        .dash-dot-open       { background: #5b9bd5; box-shadow: 0 0 6px rgba(91,155,213,0.4); }
+        .dash-dot-escalated  { background: #e06050; box-shadow: 0 0 6px rgba(224,96,80,0.4); }
+        .dash-dot-resolved   { background: #5a9a5e; box-shadow: 0 0 6px rgba(90,154,94,0.4); }
+        .dash-dot-critical   { background: #e06050; }
+        .dash-dot-high       { background: #e8a040; }
+        .dash-dot-medium     { background: #d4c55a; }
+        .dash-dot-low        { background: #5a9a5e; }
+        .dash-label {
+            flex: 1;
+            color: rgba(255,255,255,0.55);
+        }
+        .dash-count {
+            color: rgba(255,255,255,0.7);
+            font-family: 'SF Mono', 'Menlo', monospace;
+            font-size: 11px;
+        }
+        .dash-bar-bg {
+            flex: 1;
+            height: 3px;
+            background: rgba(255,255,255,0.06);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+        .dash-bar-fill {
+            height: 100%;
+            border-radius: 2px;
+            transition: width 0.5s ease;
+        }
+        .dash-recent-item {
+            padding: 6px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+            font-size: 11px;
+            line-height: 1.5;
+        }
+        .dash-recent-item:last-child { border-bottom: none; }
+        .dash-recent-id {
+            font-family: 'SF Mono', 'Menlo', monospace;
+            color: rgba(255,255,255,0.4);
+            font-size: 10px;
+        }
+        .dash-recent-summary {
+            color: rgba(255,255,255,0.6);
+        }
+        .dash-badge {
+            display: inline-block;
+            font-size: 9px;
+            padding: 1px 5px;
+            border-radius: 3px;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-left: 4px;
+        }
+        .dash-badge-critical { background: rgba(224,96,80,0.2); color: #e06050; }
+        .dash-badge-high     { background: rgba(232,160,64,0.2); color: #e8a040; }
+        .dash-badge-medium   { background: rgba(212,197,90,0.2); color: #d4c55a; }
+        .dash-badge-low      { background: rgba(90,154,94,0.2);  color: #5a9a5e; }
+        .dash-empty {
+            text-align: center;
+            color: rgba(255,255,255,0.25);
+            font-size: 11px;
+            padding: 20px 0;
+        }
     </style>
 </head>
 <body>
-    <div class="header">
-        <div class="header-logo">L</div>
-        <div>
-            <div class="header-title">LocalDesk</div>
-            <div class="header-subtitle">IT Support Assistant</div>
-        </div>
-        <div class="header-right">
-            <span class="status-dot"></span>
-            <span class="status-text">Online</span>
-        </div>
+    <div id="brand">mu</div>
+    <div id="security-msg"></div>
+    <div id="security-panel-overlay" onclick="closeSecurityPanel()"></div>
+    <div id="security-panel">
+        <div class="sp-title">security audit</div>
+        <div id="sp-content"></div>
+        <div class="sp-close" onclick="closeSecurityPanel()">close</div>
     </div>
-
-    <div class="chat-container" id="chat">
-        <div class="welcome" id="welcome">
-            <h2>How can I help you today?</h2>
-            <p>I'm your IT support assistant. I can help with troubleshooting, check SLA terms, look up your assets, and create support tickets.</p>
-            <div class="welcome-hints">
-                <div class="hint-chip" onclick="sendHint(this)">My VPN keeps disconnecting</div>
-                <div class="hint-chip" onclick="sendHint(this)">How do I reset my password?</div>
-                <div class="hint-chip" onclick="sendHint(this)">What's the SLA for Gold tier?</div>
-                <div class="hint-chip" onclick="sendHint(this)">Look up assets for EMP-001</div>
-            </div>
-        </div>
+    <div id="monitor"></div>
+    <button id="dash-toggle" onclick="event.stopPropagation(); toggleDashboard()" title="Dashboard">&#9638;</button>
+    <div id="dashboard-panel" onclick="event.stopPropagation()">
+        <div class="dash-title">dashboard</div>
+        <div id="dash-content"><div class="dash-empty">loading...</div></div>
     </div>
-
-    <div class="input-container">
-        <div class="input-wrapper">
-            <textarea id="input" placeholder="Describe your IT issue..." rows="1"
-                      onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
-            <button class="send-btn" id="sendBtn" onclick="sendMessage()">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/>
-                </svg>
-            </button>
-        </div>
-    </div>
+    <div id="hint">click anywhere</div>
 
     <script>
-        const chat = document.getElementById('chat');
-        const input = document.getElementById('input');
-        const sendBtn = document.getElementById('sendBtn');
-        const welcome = document.getElementById('welcome');
-        const sessionId = 'session-' + Date.now();
-        let isProcessing = false;
+        /* ── State ── */
+        const threads = {};
+        let activeThreadId = null;
+        let threadCount = 0;
+        let dragState = null;
+        let justDragged = false;
 
-        function autoResize(el) {
-            el.style.height = 'auto';
-            el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+        const THREAD_WIDTH = 360;
+        const HINTS = [
+            'My VPN keeps disconnecting',
+            'How do I reset my password?',
+            "What's the SLA for Gold tier?",
+            'Look up assets for EMP-001',
+        ];
+
+        const THINKING_PHRASES = [
+            'Collecting hamsters', 'Polishing neurons', 'Consulting the oracle',
+            'Untangling thoughts', 'Herding electrons', 'Brewing intelligence',
+            'Folding space-time', 'Asking the wise owl', 'Calibrating vibes',
+            'Shuffling priorities', 'Warming up synapses', 'Consulting tea leaves',
+            'Aligning chakras', 'Defragmenting wisdom', 'Petting the servers',
+            'Summoning patience', 'Counting backwards', 'Reticulating splines',
+            'Charging crystals', 'Tuning frequencies', 'Fluffing the cloud',
+            'Waking up the hamsters', 'Spinning up galaxies', 'Poking the algorithm',
+            'Feeding the model', 'Stretching neurons', 'Organizing chaos',
+            'Dusting off knowledge', 'Watering the logic tree', 'Consulting the scrolls',
+            'Rearranging pixels', 'Composing thoughts', 'Sharpening pencils',
+            'Inflating ideas', 'Booting up empathy', 'Warming the teapot',
+            'Sorting quantum bits', 'Knitting a response', 'Painting with words',
+            'Tickling the database', 'Whispering to GPUs', 'Rolling the dice',
+            'Consulting star charts', 'Winding the clockwork', 'Polishing the crystal ball',
+            'Untying mental knots', 'Feeding the squirrels', 'Decoding the universe',
+            'Stirring the cauldron', 'Assembling tiny robots',
+        ];
+
+        const statusIntervals = {};
+        const hintIntervals = {};
+
+        const brand = document.getElementById('brand');
+        const hint  = document.getElementById('hint');
+
+        /* ── First-visit hint ── */
+        if (!localStorage.getItem('mu-visited')) {
+            setTimeout(() => hint.classList.add('visible'), 1800);
+            setTimeout(() => {
+                hint.classList.remove('visible');
+                localStorage.setItem('mu-visited', '1');
+            }, 7000);
         }
 
-        function handleKey(e) {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                sendMessage();
+        /* ── Canvas click → spawn thread ── */
+        document.body.addEventListener('click', (e) => {
+            if (justDragged) return;
+            if (e.target.closest('.thread')) return;
+            if (e.target.closest('#brand')) return;
+            if (e.target.closest('#security-msg')) return;
+            if (e.target.closest('#security-panel')) return;
+            if (e.target.closest('#security-panel-overlay')) return;
+            if (e.target.closest('#dash-toggle')) return;
+            if (e.target.closest('#dashboard-panel')) return;
+            spawnThread(e.clientX, e.clientY);
+        });
+
+        function spawnThread(x, y) {
+            const id = 'thread-' + Date.now() + '-' + (++threadCount);
+
+            /* Position relative to page (account for scroll) */
+            let left = x + window.scrollX;
+            let top  = y + window.scrollY;
+
+            /* Clamp to viewport edges */
+            if (left + THREAD_WIDTH + 10 > document.documentElement.scrollWidth &&
+                document.documentElement.scrollWidth > THREAD_WIDTH + 20) {
+                left = Math.max(10, (x + window.scrollX) - THREAD_WIDTH);
             }
-        }
+            if (left < 10) left = 10;
+            if (top  < 10) top  = 10;
 
-        function sendHint(el) {
-            input.value = el.textContent;
-            sendMessage();
-        }
-
-        function timeStr() {
-            return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        }
-
-        function addMessage(role, content, extra) {
-            if (welcome) welcome.style.display = 'none';
-            const div = document.createElement('div');
-            div.className = `message ${role}`;
-            const avatar = role === 'assistant' ? 'L' : 'U';
-            let html = `
-                <div class="message-avatar">${avatar}</div>
-                <div>
-                    <div class="message-content">${escapeHtml(content)}</div>`;
-
-            // Render incident cards
-            if (extra && extra.tool_calls) {
-                for (const tc of extra.tool_calls) {
-                    if (tc.name === 'create_incident') {
-                        html += renderIncidentCard(tc.arguments);
-                    }
+            /* Avoid overlap: push right if too close to existing thread */
+            for (const tid in threads) {
+                const t = threads[tid];
+                const dx = Math.abs(left - t.left);
+                const dy = Math.abs(top - t.top);
+                if (dx < THREAD_WIDTH + 20 && dy < 80) {
+                    left = t.left + THREAD_WIDTH + 24;
                 }
             }
 
-            // Guardrail verdict badge
-            if (extra && extra.judge_verdict && role === 'assistant') {
-                const v = extra.judge_verdict;
-                const cls = v === 'PASS' ? 'guardrail-pass' : v === 'FLAG' ? 'guardrail-flag' : 'guardrail-block';
-                html += `<div class="guardrail-badge ${cls}">&#9679; ${v}</div>`;
+            const thread = {
+                id,
+                left,
+                top,
+                conversationId: id,
+                isProcessing: false,
+            };
+            threads[id] = thread;
+
+            /* Build DOM */
+            const el = document.createElement('div');
+            el.className = 'thread active';
+            el.id = id;
+            el.style.left = left + 'px';
+            el.style.top  = top  + 'px';
+
+            el.innerHTML = `
+                <div class="thread-drag-handle" data-thread="${id}"></div>
+                <div class="thread-close" onclick="closeThread('${id}')" title="Close">×</div>
+                <div class="thread-messages" id="msgs-${id}"></div>
+                <div class="thread-hints" id="hints-${id}">
+                    <button class="thread-hint" id="hint-btn-${id}"
+                            onclick="event.stopPropagation(); sendHint('${id}', this)"></button>
+                </div>
+                <div class="thread-input">
+                    <input type="text" id="input-${id}" placeholder=""
+                           onkeydown="handleKey(event, '${id}')" />
+                </div>
+            `;
+
+            document.body.appendChild(el);
+            setActiveThread(id);
+            document.getElementById(`input-${id}`).focus();
+            brand.style.opacity = '0.4';
+            setupDrag(el, id);
+            startHintCycling(id);
+            updateBodySize();
+        }
+
+        /* ── Thread activation ── */
+        function setActiveThread(id) {
+            if (activeThreadId && activeThreadId !== id) {
+                const prev = document.getElementById(activeThreadId);
+                if (prev) { prev.classList.remove('active'); prev.classList.add('inactive'); }
+            }
+            activeThreadId = id;
+            const el = document.getElementById(id);
+            if (el) { el.classList.remove('inactive'); el.classList.add('active'); }
+        }
+
+        document.body.addEventListener('mousedown', (e) => {
+            const threadEl = e.target.closest('.thread');
+            if (threadEl && threadEl.id !== activeThreadId) {
+                setActiveThread(threadEl.id);
+                if (!e.target.closest('.thread-close')) {
+                    const inp = document.getElementById(`input-${threadEl.id}`);
+                    if (inp) setTimeout(() => inp.focus(), 0);
+                }
+            }
+        });
+
+        /* ── Close thread ── */
+        function closeThread(id) {
+            if (hintIntervals[id]) { clearInterval(hintIntervals[id]); delete hintIntervals[id]; }
+            if (statusIntervals[id]) { clearInterval(statusIntervals[id]); delete statusIntervals[id]; }
+            const el = document.getElementById(id);
+            if (el) {
+                el.style.transition = 'opacity 0.2s, transform 0.2s';
+                el.style.opacity = '0';
+                el.style.transform = 'scale(0.94)';
+                setTimeout(() => el.remove(), 200);
+            }
+            delete threads[id];
+
+            if (activeThreadId === id) {
+                const remaining = Object.keys(threads);
+                activeThreadId = remaining.length ? remaining[remaining.length - 1] : null;
+                if (activeThreadId) setActiveThread(activeThreadId);
             }
 
-            html += `<div class="message-time">${timeStr()}</div></div>`;
-            div.innerHTML = html;
-            chat.appendChild(div);
-            chat.scrollTop = chat.scrollHeight;
+            if (!Object.keys(threads).length) {
+                brand.style.opacity = '';
+            }
+            updateBodySize();
         }
 
-        function renderIncidentCard(args) {
-            const pClass = `badge-${args.priority || 'medium'}`;
-            return `
-                <div class="incident-card">
-                    <h4>Incident Created</h4>
-                    <div class="field"><span class="field-label">Summary</span><span>${escapeHtml(args.summary || '')}</span></div>
-                    <div class="field"><span class="field-label">Priority</span><span class="badge ${pClass}">${escapeHtml(args.priority || '')}</span></div>
-                    <div class="field"><span class="field-label">Category</span><span>${escapeHtml(args.category || '')}</span></div>
-                    <div class="field"><span class="field-label">Reporter</span><span>${escapeHtml(args.reporter_name || '')}</span></div>
-                    <div class="field"><span class="field-label">Status</span><span class="badge badge-open">Open</span></div>
-                </div>`;
+        /* ── Messaging ── */
+        function handleKey(e, threadId) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage(threadId);
+            }
         }
 
-        function showStatus(text) {
+        function sendHint(threadId, el) {
+            const inp = document.getElementById(`input-${threadId}`);
+            inp.value = el.textContent;
+            removeHints(threadId);
+            sendMessage(threadId);
+        }
+
+        function removeHints(threadId) {
+            if (hintIntervals[threadId]) {
+                clearInterval(hintIntervals[threadId]);
+                delete hintIntervals[threadId];
+            }
+            const h = document.getElementById(`hints-${threadId}`);
+            if (h) h.remove();
+        }
+
+        function startHintCycling(threadId) {
+            const btn = document.getElementById(`hint-btn-${threadId}`);
+            if (!btn) return;
+            let idx = 0;
+            btn.textContent = HINTS[idx];
+            hintIntervals[threadId] = setInterval(() => {
+                btn.style.opacity = '0';
+                setTimeout(() => {
+                    idx = (idx + 1) % HINTS.length;
+                    btn.textContent = HINTS[idx];
+                    btn.style.opacity = '';
+                }, 250);
+            }, 2000);
+        }
+
+        function addMessage(threadId, role, content, extra) {
+            const msgsEl = document.getElementById(`msgs-${threadId}`);
+            if (!msgsEl) return;
+            removeHints(threadId);
+
             const div = document.createElement('div');
-            div.className = 'status-indicator';
-            div.id = 'status';
-            div.innerHTML = `<div class="typing-dots"><span></span><span></span><span></span></div><span>${escapeHtml(text)}</span>`;
-            chat.appendChild(div);
-            chat.scrollTop = chat.scrollHeight;
+            div.className = `msg msg-${role}`;
+            const rendered = role === 'assistant' ? renderMd(content) : esc(content);
+            let html = `<div class="msg-bubble">${rendered}</div>`;
+
+            if (extra && extra.tool_calls) {
+                for (const tc of extra.tool_calls) {
+                    if (tc.name === 'create_incident') html += incidentCard(tc.arguments);
+                }
+            }
+
+            if (extra && extra.judge_verdict && role === 'assistant' && extra.judge_verdict !== 'PASS') {
+                const v = extra.judge_verdict;
+                const c = v === 'FLAG' ? 'guardrail-flag' : 'guardrail-block';
+                html += `<div class="guardrail-badge ${c}">\u25CF ${v}</div>`;
+            }
+
+            div.innerHTML = html;
+            msgsEl.appendChild(div);
+            msgsEl.scrollTop = msgsEl.scrollHeight;
+            updateBodySize();
         }
 
-        function removeStatus() {
-            const el = document.getElementById('status');
+        function randomPhrase() {
+            return THINKING_PHRASES[Math.floor(Math.random() * THINKING_PHRASES.length)];
+        }
+
+        function showStatus(threadId) {
+            const msgsEl = document.getElementById(`msgs-${threadId}`);
+            if (!msgsEl) return;
+            const d = document.createElement('div');
+            d.className = 'status-shimmer';
+            d.id = `status-${threadId}`;
+            d.textContent = randomPhrase();
+            msgsEl.appendChild(d);
+            msgsEl.scrollTop = msgsEl.scrollHeight;
+            statusIntervals[threadId] = setInterval(() => {
+                d.textContent = randomPhrase();
+                msgsEl.scrollTop = msgsEl.scrollHeight;
+            }, 4000);
+        }
+
+        function removeStatus(threadId) {
+            if (statusIntervals[threadId]) {
+                clearInterval(statusIntervals[threadId]);
+                delete statusIntervals[threadId];
+            }
+            const el = document.getElementById(`status-${threadId}`);
             if (el) el.remove();
         }
 
-        function escapeHtml(s) {
+        function incidentCard(a) {
+            const p = `badge-${a.priority || 'medium'}`;
+            return `<div class="incident-card">
+                <h4>Incident Created</h4>
+                <div class="field"><span class="field-label">Summary</span><span>${esc(a.summary||'')}</span></div>
+                <div class="field"><span class="field-label">Priority</span><span class="badge ${p}">${esc(a.priority||'')}</span></div>
+                <div class="field"><span class="field-label">Category</span><span>${esc(a.category||'')}</span></div>
+                <div class="field"><span class="field-label">Reporter</span><span>${esc(a.reporter_name||'')}</span></div>
+                <div class="field"><span class="field-label">Status</span><span class="badge badge-open">Open</span></div>
+            </div>`;
+        }
+
+        function esc(s) {
             const d = document.createElement('div');
             d.textContent = s;
             return d.innerHTML;
         }
 
-        async function sendMessage() {
-            const text = input.value.trim();
-            if (!text || isProcessing) return;
-            isProcessing = true;
-            sendBtn.disabled = true;
-            input.value = '';
-            input.style.height = 'auto';
+        function renderMd(text) {
+            let s = esc(text);
+            /* fenced code blocks */
+            s = s.replace(/```(?:\w*)\n?([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
+            /* inline code */
+            s = s.replace(/`([^`]+)`/g, '<code>$1</code>');
+            /* bold */
+            s = s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+            /* italic */
+            s = s.replace(/\*(.+?)\*/g, '<em>$1</em>');
+            /* headings → bold */
+            s = s.replace(/^#{1,3}\s+(.+)$/gm, '<strong>$1</strong>');
+            /* unordered lists */
+            s = s.replace(/^[-*]\s+(.+)$/gm, '\u2022 $1');
+            /* numbered lists */
+            s = s.replace(/^\d+\.\s+(.+)$/gm, '\u2022 $1');
+            /* line breaks */
+            s = s.replace(/\n/g, '<br>');
+            return s;
+        }
 
-            addMessage('user', text);
-            showStatus('Thinking...');
+        /* ── Security pulse on brand ── */
+        const SECURITY_MESSAGES = {
+            PASS: [
+                'three gates passed',
+                'truth preserved',
+                'grounded and clear',
+                'all layers aligned',
+                'integrity confirmed',
+                'harmony maintained',
+                'response verified',
+            ],
+            FLAG: [
+                'gentle caution noted',
+                'mindful review applied',
+                'awareness heightened',
+            ],
+            BLOCK: [
+                'boundary held',
+                'harmful intent deflected',
+                'protection activated',
+            ],
+            INPUT_BLOCK: [
+                'intent recognized · deflected',
+                'boundary held at the gate',
+                'shield activated',
+            ],
+        };
 
+        const securityMsg = document.getElementById('security-msg');
+        const securityPanel = document.getElementById('security-panel');
+        const securityOverlay = document.getElementById('security-panel-overlay');
+        const spContent = document.getElementById('sp-content');
+        let pulseTimer = null;
+        let typeTimer = null;
+        let lastSecurityData = null;
+
+        /* Brand / security-msg click → open security panel */
+        brand.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (lastSecurityData) openSecurityPanel();
+        });
+        securityMsg.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (lastSecurityData) openSecurityPanel();
+        });
+
+        const GATE_EXPLANATIONS = {
+            gate1: 'Before your message even reaches the AI, this gate scans it for signs of manipulation \u2014 like someone trying to trick the AI into ignoring its rules, or accidentally pasting sensitive information such as credit card numbers or personal IDs. Think of it as a bouncer at the door: if something looks suspicious, it gets stopped before it can cause any harm.',
+            gate2: 'After the AI writes its response, this gate checks whether the answer is actually backed by real information from the knowledge base. For example, if the AI quotes a response time from your service agreement, this gate verifies that number matches the actual document. It catches the AI if it accidentally makes something up.',
+            gate3: 'This is the most thorough check \u2014 a second AI evaluation that reads the entire conversation and judges whether the response is truthful, professional, and doesn\u2019t make promises that can\u2019t be kept. It\u2019s like having a supervisor review every single reply before it reaches you.',
+            tools: 'These are the actions the AI took while preparing your answer \u2014 such as searching the knowledge base for relevant articles, looking up your service tier, or checking what equipment is assigned to an employee. Each tool call means the AI actively retrieved real data rather than guessing.',
+        };
+
+        function openSecurityPanel() {
+            const d = lastSecurityData;
+            if (!d) return;
+
+            const triggers = d.guardrail_triggers || [];
+            const verdict = d.judge_verdict || 'PASS';
+            const tools = d.tool_calls || [];
+
+            const inputTriggers = triggers.filter(t =>
+                t.includes('injection') || t.includes('pii') || t.includes('input'));
+            const outputTriggers = triggers.filter(t =>
+                t.includes('sla') || t.includes('hallucination') || t.includes('output'));
+
+            const g1ok = inputTriggers.length === 0;
+            const g2ok = outputTriggers.length === 0;
+            const g3ok = verdict === 'PASS';
+
+            let html = '';
+
+            /* Gate 1 — Input */
+            html += '<div class="sp-gate" onclick="toggleGateExplain(this, \'gate1\')">';
+            html += '<div class="sp-gate-header">gate one \u00b7 input filter</div>';
+            html += `<div class="sp-gate-status">
+                <span class="sp-dot ${g1ok ? 'sp-dot-pass' : 'sp-dot-block'}"></span>
+                ${g1ok ? 'clear \u00b7 no threats detected' : 'triggered'}
+            </div>`;
+            if (!g1ok) {
+                html += `<div class="sp-detail">${inputTriggers.map(esc).join(', ')}</div>`;
+            }
+            html += '</div>';
+
+            /* Gate 2 — Output */
+            html += '<div class="sp-gate" onclick="toggleGateExplain(this, \'gate2\')">';
+            html += '<div class="sp-gate-header">gate two \u00b7 output validator</div>';
+            html += `<div class="sp-gate-status">
+                <span class="sp-dot ${g2ok ? 'sp-dot-pass' : 'sp-dot-flag'}"></span>
+                ${g2ok ? 'clear \u00b7 response grounded' : 'concern detected'}
+            </div>`;
+            if (!g2ok) {
+                html += `<div class="sp-detail">${outputTriggers.map(esc).join(', ')}</div>`;
+            }
+            html += '</div>';
+
+            /* Gate 3 — Judge */
+            html += '<div class="sp-gate" onclick="toggleGateExplain(this, \'gate3\')">';
+            html += '<div class="sp-gate-header">gate three \u00b7 judge</div>';
+            const g3dot = g3ok ? 'sp-dot-pass' : verdict === 'FLAG' ? 'sp-dot-flag' : 'sp-dot-block';
+            html += `<div class="sp-gate-status">
+                <span class="sp-dot ${g3dot}"></span>
+                verdict: ${verdict.toLowerCase()}
+            </div>`;
+            html += '</div>';
+
+            /* Tools used */
+            if (tools.length > 0) {
+                html += '<div class="sp-gate" onclick="toggleGateExplain(this, \'tools\')">';
+                html += '<div class="sp-gate-header">tools invoked</div>';
+                for (const t of tools) {
+                    html += `<div class="sp-gate-status">
+                        <span class="sp-dot sp-dot-pass"></span>
+                        ${esc(t.name)}
+                    </div>`;
+                }
+                html += '</div>';
+            }
+
+            spContent.innerHTML = html;
+            securityPanel.classList.add('open');
+            securityOverlay.classList.add('open');
+        }
+
+        function toggleGateExplain(gateEl, key) {
+            const existing = gateEl.querySelector('.sp-gate-explain');
+            if (existing) {
+                existing.remove();
+                return;
+            }
+            /* Close any other open explanations */
+            spContent.querySelectorAll('.sp-gate-explain').forEach(e => e.remove());
+            const div = document.createElement('div');
+            div.className = 'sp-gate-explain';
+            div.textContent = GATE_EXPLANATIONS[key] || '';
+            gateEl.appendChild(div);
+        }
+
+        function closeSecurityPanel() {
+            securityPanel.classList.remove('open');
+            securityOverlay.classList.remove('open');
+        }
+
+        /* Close on Escape */
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeSecurityPanel();
+        });
+
+        function showSecurityPulse(verdict, triggers, toolCalls) {
+            /* Store for panel */
+            lastSecurityData = { judge_verdict: verdict, guardrail_triggers: triggers, tool_calls: toolCalls };
+
+            /* Determine pulse type */
+            let level;
+            if (!verdict && triggers && triggers.length > 0) {
+                level = 'INPUT_BLOCK';
+            } else {
+                level = verdict || 'PASS';
+            }
+
+            const colorClass = (level === 'INPUT_BLOCK' ? 'BLOCK' : level).toLowerCase();
+            const pool = SECURITY_MESSAGES[level] || SECURITY_MESSAGES.PASS;
+            const msg = pool[Math.floor(Math.random() * pool.length)];
+
+            /* Clear any ongoing pulse */
+            if (pulseTimer) clearTimeout(pulseTimer);
+            if (typeTimer) clearInterval(typeTimer);
+            brand.classList.remove('pulse-pass', 'pulse-flag', 'pulse-block', 'pulsing');
+            securityMsg.classList.remove('msg-pass', 'msg-flag', 'msg-block');
+            securityMsg.textContent = '';
+
+            /* Lift brand to full visibility */
+            const prevOpacity = brand.style.opacity;
+            brand.style.opacity = '1';
+
+            /* Activate glow + breathe + clickable */
+            void brand.offsetWidth; /* force reflow for re-triggering animation */
+            brand.classList.add(`pulse-${colorClass}`, 'pulsing');
+
+            /* Typewriter effect on security message */
+            securityMsg.classList.add(`msg-${colorClass}`);
+            let charIdx = 0;
+            typeTimer = setInterval(() => {
+                if (charIdx < msg.length) {
+                    securityMsg.textContent += msg[charIdx];
+                    charIdx++;
+                } else {
+                    clearInterval(typeTimer);
+                    typeTimer = null;
+                }
+            }, 50);
+
+            /* Fade everything back after hold */
+            pulseTimer = setTimeout(() => {
+                brand.classList.remove('pulse-pass', 'pulse-flag', 'pulse-block', 'pulsing');
+                brand.style.opacity = prevOpacity || '';
+                securityMsg.classList.remove('msg-pass', 'msg-flag', 'msg-block');
+                setTimeout(() => { securityMsg.textContent = ''; }, 1200);
+                pulseTimer = null;
+            }, 5500);
+        }
+
+        async function sendMessage(threadId) {
+            const thread = threads[threadId];
+            if (!thread) return;
+
+            const inp = document.getElementById(`input-${threadId}`);
+            const text = inp.value.trim();
+            if (!text || thread.isProcessing) return;
+
+            thread.isProcessing = true;
+            inp.value = '';
+            inp.disabled = true;
+
+            addMessage(threadId, 'user', text);
+            showStatus(threadId);
+
+            const t0 = performance.now();
             try {
                 const res = await fetch('/api/chat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ message: text, session_id: sessionId }),
+                    body: JSON.stringify({ message: text, session_id: thread.conversationId }),
                 });
-                removeStatus();
+                const elapsed = (performance.now() - t0) / 1000;
+                removeStatus(threadId);
                 const data = await res.json();
-
-                if (data.tool_calls && data.tool_calls.length > 0) {
-                    // Show tool activity briefly
-                    const toolNames = data.tool_calls.map(t => t.name).join(', ');
-                    // Already processed, just show the response
-                }
-
-                addMessage('assistant', data.response || data.error || 'No response', {
+                addMessage(threadId, 'assistant', data.response || data.error || 'No response', {
                     tool_calls: data.tool_calls || [],
                     judge_verdict: data.judge_verdict,
                     guardrail_triggers: data.guardrail_triggers,
                 });
+                monitorRecord(elapsed);
+                /* Trigger security pulse on brand */
+                showSecurityPulse(data.judge_verdict, data.guardrail_triggers, data.tool_calls);
             } catch (err) {
-                removeStatus();
-                addMessage('assistant', 'Sorry, something went wrong. Please try again.');
+                removeStatus(threadId);
+                addMessage(threadId, 'assistant', 'Something went wrong.');
             }
 
-            isProcessing = false;
-            sendBtn.disabled = false;
-            input.focus();
+            thread.isProcessing = false;
+            inp.disabled = false;
+            inp.focus();
         }
+
+        /* ── Dragging (single global handler) ── */
+        function setupDrag(el, threadId) {
+            const handle = el.querySelector('.thread-drag-handle');
+            handle.addEventListener('mousedown', (e) => {
+                dragState = {
+                    startX: e.clientX,
+                    startY: e.clientY,
+                    origLeft: threads[threadId].left,
+                    origTop:  threads[threadId].top,
+                    el,
+                    threadId,
+                };
+                el.classList.add('dragging');
+                e.preventDefault();
+            });
+        }
+
+        document.addEventListener('mousemove', (e) => {
+            if (!dragState) return;
+            const dx = e.clientX - dragState.startX;
+            const dy = e.clientY - dragState.startY;
+            const nl = Math.max(0, dragState.origLeft + dx);
+            const nt = Math.max(0, dragState.origTop  + dy);
+            dragState.el.style.left = nl + 'px';
+            dragState.el.style.top  = nt + 'px';
+            threads[dragState.threadId].left = nl;
+            threads[dragState.threadId].top  = nt;
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (dragState) {
+                dragState.el.classList.remove('dragging');
+                dragState = null;
+                justDragged = true;
+                updateBodySize();
+                setTimeout(() => justDragged = false, 50);
+            }
+        });
+
+        /* ── Keep body large enough to contain all threads ── */
+        function updateBodySize() {
+            let maxBottom = window.innerHeight;
+            let maxRight  = window.innerWidth;
+            for (const tid in threads) {
+                const el = document.getElementById(tid);
+                if (el) {
+                    const b = threads[tid].top + el.offsetHeight + 40;
+                    const r = threads[tid].left + THREAD_WIDTH + 40;
+                    if (b > maxBottom) maxBottom = b;
+                    if (r > maxRight)  maxRight  = r;
+                }
+            }
+            document.body.style.minHeight = maxBottom + 'px';
+            document.body.style.minWidth  = maxRight  + 'px';
+        }
+
+        /* ── Monitor widget ── */
+        const monitorEl = document.getElementById('monitor');
+        const responseTimes = [];
+        let monitorMode = '';
+        let monitorModel = '';
+
+        (async function initMonitor() {
+            try {
+                const res = await fetch('/api/status');
+                const d = await res.json();
+                monitorMode = d.mode || 'local';
+                monitorModel = d.model || '';
+                renderMonitor();
+            } catch (e) { /* silent */ }
+        })();
+
+        function monitorRecord(secs) {
+            responseTimes.push(secs);
+            if (responseTimes.length > 20) responseTimes.shift();
+            renderMonitor();
+        }
+
+        function renderMonitor() {
+            const n = responseTimes.length;
+            const last = n > 0 ? responseTimes[n - 1].toFixed(1) : '\u2014';
+            const avg = n > 0 ? (responseTimes.reduce((a, b) => a + b, 0) / n).toFixed(1) : '\u2014';
+            const dotClass = monitorMode === 'cloud' ? 'mon-dot-cloud' : 'mon-dot-local';
+            const shortModel = monitorModel.split('/').pop();
+
+            let html = `<div class="mon-row"><span class="mon-dot ${dotClass}"></span>${monitorMode} \u00b7 ${shortModel}</div>`;
+            html += `<div>${last}s last \u00b7 ${avg}s avg \u00b7 ${n} req</div>`;
+
+            if (n >= 2) {
+                html += renderSparkline(responseTimes);
+            }
+
+            monitorEl.innerHTML = html;
+        }
+
+        function renderSparkline(data) {
+            const w = 90, h = 24, pad = 2;
+            const max = Math.max(...data, 0.1);
+            const min = Math.min(...data, 0);
+            const range = max - min || 1;
+            const points = data.map((v, i) => {
+                const x = pad + (i / (data.length - 1)) * (w - pad * 2);
+                const y = pad + (1 - (v - min) / range) * (h - pad * 2);
+                return `${x.toFixed(1)},${y.toFixed(1)}`;
+            });
+            return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
+                <polyline points="${points.join(' ')}" fill="none" stroke="rgba(0,0,0,0.18)" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>`;
+        }
+
+        renderMonitor();
+
+        /* ── Dashboard panel ── */
+        const dashPanel = document.getElementById('dashboard-panel');
+        const dashToggle = document.getElementById('dash-toggle');
+        const dashContent = document.getElementById('dash-content');
+        let dashOpen = false;
+
+        function toggleDashboard() {
+            dashOpen = !dashOpen;
+            dashPanel.classList.toggle('open', dashOpen);
+            dashToggle.classList.toggle('active', dashOpen);
+            if (dashOpen) loadDashboard();
+        }
+
+        async function loadDashboard() {
+            try {
+                const res = await fetch('/api/dashboard');
+                const d = await res.json();
+                renderDashboard(d);
+            } catch (e) {
+                dashContent.innerHTML = '<div class="dash-empty">could not load dashboard</div>';
+            }
+        }
+
+        function renderDashboard(d) {
+            const total = d.total || 0;
+            const byStatus = d.by_status || {};
+            const byPriority = d.by_priority || {};
+            const recent = d.recent || [];
+
+            let html = '';
+
+            /* Total */
+            html += `<div class="dash-total">${total}</div>`;
+            html += `<div class="dash-total-label">incidents</div>`;
+
+            /* By status */
+            html += '<div class="dash-section">';
+            html += '<div class="dash-section-title">by status</div>';
+            const statusOrder = ['open', 'escalated', 'resolved'];
+            for (const s of statusOrder) {
+                const count = byStatus[s] || 0;
+                const pct = total > 0 ? (count / total * 100) : 0;
+                const dotClass = `dash-dot-${s}`;
+                html += `<div class="dash-row">
+                    <span class="dash-dot ${dotClass}"></span>
+                    <span class="dash-label">${s}</span>
+                    <div class="dash-bar-bg"><div class="dash-bar-fill ${dotClass}" style="width:${pct}%"></div></div>
+                    <span class="dash-count">${count}</span>
+                </div>`;
+            }
+            /* Any other statuses */
+            for (const [s, count] of Object.entries(byStatus)) {
+                if (statusOrder.includes(s)) continue;
+                const pct = total > 0 ? (count / total * 100) : 0;
+                html += `<div class="dash-row">
+                    <span class="dash-dot" style="background:rgba(255,255,255,0.3)"></span>
+                    <span class="dash-label">${esc(s)}</span>
+                    <div class="dash-bar-bg"><div class="dash-bar-fill" style="width:${pct}%;background:rgba(255,255,255,0.3)"></div></div>
+                    <span class="dash-count">${count}</span>
+                </div>`;
+            }
+            html += '</div>';
+
+            /* By priority */
+            html += '<div class="dash-section">';
+            html += '<div class="dash-section-title">by priority</div>';
+            const prioOrder = ['critical', 'high', 'medium', 'low'];
+            for (const p of prioOrder) {
+                const count = byPriority[p] || 0;
+                const pct = total > 0 ? (count / total * 100) : 0;
+                const dotClass = `dash-dot-${p}`;
+                html += `<div class="dash-row">
+                    <span class="dash-dot ${dotClass}"></span>
+                    <span class="dash-label">${p}</span>
+                    <div class="dash-bar-bg"><div class="dash-bar-fill ${dotClass}" style="width:${pct}%"></div></div>
+                    <span class="dash-count">${count}</span>
+                </div>`;
+            }
+            html += '</div>';
+
+            /* Recent incidents */
+            if (recent.length > 0) {
+                html += '<div class="dash-section">';
+                html += '<div class="dash-section-title">recent</div>';
+                for (const r of recent) {
+                    const badgeClass = `dash-badge-${r.priority || 'medium'}`;
+                    html += `<div class="dash-recent-item">
+                        <span class="dash-recent-id">${esc(r.ticket_id || '')}</span>
+                        <span class="dash-badge ${badgeClass}">${esc(r.priority || '')}</span>
+                        <br><span class="dash-recent-summary">${esc(r.summary || '')}</span>
+                    </div>`;
+                }
+                html += '</div>';
+            }
+
+            dashContent.innerHTML = html;
+        }
+
+        /* Close dashboard on Escape too */
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && dashOpen) toggleDashboard();
+        });
     </script>
 </body>
 </html>
