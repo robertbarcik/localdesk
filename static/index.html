@@ -20,6 +20,62 @@
             --thread-width: 360px;
         }
 
+        /* Dark mode overrides */
+        body.dark {
+            --bg: #0f1117;
+            --surface: #1a1d25;
+            --text: #e0e0e0;
+            --text-muted: #666;
+            --accent-light: #252830;
+            --border: rgba(255,255,255,0.06);
+            --shadow: 0 2px 20px rgba(0,0,0,0.3);
+            --shadow-active: 0 4px 32px rgba(0,0,0,0.45);
+            background: linear-gradient(150deg, #0f1117 0%, #131620 100%);
+            color: var(--text);
+        }
+        body.dark::before {
+            background:
+                radial-gradient(ellipse 80% 60% at 20% 50%, rgba(60, 180, 120, 0.18) 0%, transparent 60%),
+                radial-gradient(ellipse 70% 50% at 80% 20%, rgba(80, 140, 220, 0.15) 0%, transparent 60%),
+                radial-gradient(ellipse 90% 50% at 50% 80%, rgba(160, 100, 220, 0.12) 0%, transparent 60%);
+        }
+        body.dark #brand { color: #4a6a4e; }
+        body.dark .thread-drag-handle::after { background: rgba(255,255,255,0.12); }
+        body.dark .thread-input { border-top-color: var(--border); }
+        body.dark .thread-input input { color: var(--text); }
+        body.dark .thread-input input::placeholder { color: rgba(255,255,255,0.22); }
+        body.dark .msg-assistant .msg-bubble { color: #ccc; }
+        body.dark .msg-assistant .msg-bubble code,
+        body.dark .msg-assistant .msg-bubble pre { background: #252830; }
+        body.dark .status-shimmer {
+            background: linear-gradient(90deg, #555 0%, #999 45%, #555 55%, #555 100%);
+            background-size: 300% 100%;
+            -webkit-background-clip: text; background-clip: text;
+        }
+        body.dark .guardrail-pass  { background: #1a2e1a; color: #4ade80; }
+        body.dark .guardrail-flag  { background: #2e2a1a; color: #facc15; }
+        body.dark .guardrail-block { background: #2e1a1a; color: #f87171; }
+        body.dark .incident-card { background: #1e2028; border-color: var(--border); }
+        body.dark .incident-card .field-label { color: var(--text-muted); }
+        body.dark .badge-critical { background: #2e1a1a; color: #f87171; }
+        body.dark .badge-high     { background: #2e2418; color: #fb923c; }
+        body.dark .badge-medium   { background: #2e2a1a; color: #facc15; }
+        body.dark .badge-low      { background: #1a2e1a; color: #4ade80; }
+        body.dark .badge-open     { background: #1a1e2e; color: #60a5fa; }
+        body.dark #monitor { color: rgba(255,255,255,0.28); }
+        body.dark #hint { color: rgba(255,255,255,0.16); }
+        body.dark .thread-hint { background: var(--accent-light); color: var(--text-muted); }
+        body.dark .thread-hint:hover { color: var(--text); }
+        body.dark #dash-toggle {
+            border-color: rgba(255,255,255,0.08);
+            background: rgba(255,255,255,0.08);
+            color: rgba(255,255,255,0.4);
+        }
+        body.dark #dash-toggle:hover {
+            background: rgba(255,255,255,0.12);
+            color: rgba(255,255,255,0.7);
+        }
+
         html, body {
             height: 100%;
             width: 100%;
@@ -700,6 +756,91 @@
             font-size: 11px;
             padding: 20px 0;
         }
+
+        /* Theme toggle */
+        #theme-toggle {
+            position: fixed;
+            bottom: 16px;
+            right: 56px;
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            border: 1px solid rgba(0,0,0,0.08);
+            background: rgba(255,255,255,0.7);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            color: rgba(0,0,0,0.35);
+            transition: color 0.2s, background 0.2s;
+            z-index: 50;
+        }
+        #theme-toggle:hover { color: rgba(0,0,0,0.6); background: rgba(255,255,255,0.9); }
+        body.dark #theme-toggle {
+            border-color: rgba(255,255,255,0.08);
+            background: rgba(255,255,255,0.08);
+            color: rgba(255,255,255,0.4);
+        }
+        body.dark #theme-toggle:hover { color: rgba(255,255,255,0.7); }
+
+        /* Thread label */
+        .thread-label {
+            font-size: 10px;
+            color: var(--text-muted);
+            text-align: center;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            padding: 0 36px;
+            margin-top: -2px;
+            pointer-events: none;
+            line-height: 1.2;
+            opacity: 0.7;
+        }
+
+        /* Audio toggle */
+        #audio-toggle {
+            position: fixed;
+            bottom: 58px;
+            left: 16px;
+            width: 24px;
+            height: 24px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            font-size: 12px;
+            color: rgba(0,0,0,0.25);
+            z-index: 50;
+            padding: 0;
+        }
+        body.dark #audio-toggle { color: rgba(255,255,255,0.25); }
+
+        /* Demo indicator */
+        #demo-indicator {
+            position: fixed;
+            top: 16px;
+            right: 16px;
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 4px;
+            color: rgba(255, 100, 100, 0.6);
+            background: rgba(255, 100, 100, 0.08);
+            padding: 4px 12px;
+            border-radius: 6px;
+            z-index: 100;
+            animation: demoPulse 2s ease-in-out infinite;
+        }
+        @keyframes demoPulse {
+            0%, 100% { opacity: 0.6; }
+            50% { opacity: 1; }
+        }
+        body.dark #demo-indicator {
+            color: rgba(255, 120, 120, 0.7);
+            background: rgba(255, 100, 100, 0.12);
+        }
     </style>
 </head>
 <body>
@@ -712,7 +853,9 @@
         <div class="sp-close" onclick="closeSecurityPanel()">close</div>
     </div>
     <div id="monitor"></div>
+    <button id="theme-toggle" onclick="event.stopPropagation(); toggleTheme()" title="Toggle dark mode">&#9789;</button>
     <button id="dash-toggle" onclick="event.stopPropagation(); toggleDashboard()" title="Dashboard">&#9638;</button>
+    <button id="audio-toggle" onclick="event.stopPropagation(); toggleAudioMute()" title="Toggle sound">&#128264;</button>
     <div id="dashboard-panel" onclick="event.stopPropagation()">
         <div class="dash-title">dashboard</div>
         <div id="dash-content"><div class="dash-empty">loading...</div></div>
@@ -786,6 +929,8 @@
             if (e.target.closest('#security-panel-overlay')) return;
             if (e.target.closest('#dash-toggle')) return;
             if (e.target.closest('#dashboard-panel')) return;
+            if (e.target.closest('#theme-toggle')) return;
+            if (e.target.closest('#audio-toggle')) return;
             spawnThread(e.clientX, e.clientY);
         });
 
@@ -820,6 +965,7 @@
                 top,
                 conversationId: id,
                 isProcessing: false,
+                label: '',
             };
             threads[id] = thread;
 
@@ -832,6 +978,7 @@
 
             el.innerHTML = `
                 <div class="thread-drag-handle" data-thread="${id}"></div>
+                <div class="thread-label" id="label-${id}"></div>
                 <div class="thread-close" onclick="closeThread('${id}')" title="Close">×</div>
                 <div class="thread-messages" id="msgs-${id}"></div>
                 <div class="thread-hints" id="hints-${id}">
@@ -943,6 +1090,14 @@
             const msgsEl = document.getElementById(`msgs-${threadId}`);
             if (!msgsEl) return;
             removeHints(threadId);
+
+            // Set thread label from first user message
+            if (role === 'user' && threads[threadId] && !threads[threadId].label) {
+                const label = content.length > 28 ? content.substring(0, 25) + '...' : content;
+                threads[threadId].label = label;
+                const labelEl = document.getElementById(`label-${threadId}`);
+                if (labelEl) labelEl.textContent = label;
+            }
 
             const div = document.createElement('div');
             div.className = `msg msg-${role}`;
@@ -1212,6 +1367,7 @@
             /* Activate glow + breathe + clickable */
             void brand.offsetWidth; /* force reflow for re-triggering animation */
             brand.classList.add(`pulse-${colorClass}`, 'pulsing');
+            playSecuritySound(level);
 
             /* Typewriter effect on security message */
             securityMsg.classList.add(`msg-${colorClass}`);
@@ -1253,22 +1409,70 @@
 
             const t0 = performance.now();
             try {
-                const res = await fetch('/api/chat', {
+                const res = await fetch('/api/chat-stream', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ message: text, session_id: thread.conversationId }),
                 });
-                const elapsed = (performance.now() - t0) / 1000;
+
                 removeStatus(threadId);
-                const data = await res.json();
-                addMessage(threadId, 'assistant', data.response || data.error || 'No response', {
-                    tool_calls: data.tool_calls || [],
-                    judge_verdict: data.judge_verdict,
-                    guardrail_triggers: data.guardrail_triggers,
-                });
+
+                /* Create empty assistant bubble for streaming */
+                const msgsEl = document.getElementById(`msgs-${threadId}`);
+                const msgDiv = document.createElement('div');
+                msgDiv.className = 'msg msg-assistant';
+                const bubble = document.createElement('div');
+                bubble.className = 'msg-bubble';
+                msgDiv.appendChild(bubble);
+                msgsEl.appendChild(msgDiv);
+
+                let fullText = '';
+                let metaData = null;
+                const reader = res.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop();
+
+                    for (const line of lines) {
+                        if (!line.startsWith('data: ')) continue;
+                        const payload = JSON.parse(line.slice(6));
+
+                        if (payload.type === 'meta') {
+                            metaData = payload;
+                        } else if (payload.type === 'chunk') {
+                            fullText += payload.content;
+                            bubble.innerHTML = renderMd(fullText);
+                            msgsEl.scrollTop = msgsEl.scrollHeight;
+                        } else if (payload.type === 'done') {
+                            if (metaData && metaData.tool_calls) {
+                                for (const tc of metaData.tool_calls) {
+                                    if (tc.name === 'create_incident') {
+                                        msgDiv.insertAdjacentHTML('beforeend', incidentCard(tc.arguments));
+                                    }
+                                }
+                            }
+                            if (metaData && metaData.judge_verdict && metaData.judge_verdict !== 'PASS') {
+                                const v = metaData.judge_verdict;
+                                const c = v === 'FLAG' ? 'guardrail-flag' : 'guardrail-block';
+                                msgDiv.insertAdjacentHTML('beforeend',
+                                    `<div class="guardrail-badge ${c}">\u25CF ${v}</div>`);
+                            }
+                        }
+                    }
+                }
+
+                const elapsed = (performance.now() - t0) / 1000;
                 monitorRecord(elapsed);
-                /* Trigger security pulse on brand */
-                showSecurityPulse(data.judge_verdict, data.guardrail_triggers, data.tool_calls);
+                if (metaData) {
+                    showSecurityPulse(metaData.judge_verdict, metaData.guardrail_triggers, metaData.tool_calls);
+                }
+                updateBodySize();
             } catch (err) {
                 removeStatus(threadId);
                 addMessage(threadId, 'assistant', 'Something went wrong.');
@@ -1385,7 +1589,7 @@
                 return `${x.toFixed(1)},${y.toFixed(1)}`;
             });
             return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
-                <polyline points="${points.join(' ')}" fill="none" stroke="rgba(0,0,0,0.18)" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+                <polyline points="${points.join(' ')}" fill="none" stroke="${document.body.classList.contains('dark') ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.18)'}" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>`;
         }
 
@@ -1489,9 +1693,142 @@
             dashContent.innerHTML = html;
         }
 
-        /* Close dashboard on Escape too */
+        /* ── Audio system (Web Audio API) ── */
+        let audioCtx = null;
+        let audioMuted = localStorage.getItem('mu-audio-muted') === 'true';
+
+        function getAudioCtx() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            return audioCtx;
+        }
+
+        function playTone(freq, duration, startTime, gainVal) {
+            const ctx = getAudioCtx();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.value = freq;
+            gain.gain.setValueAtTime(gainVal, startTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(startTime);
+            osc.stop(startTime + duration);
+        }
+
+        function playSecuritySound(level) {
+            if (audioMuted) return;
+            try {
+                const ctx = getAudioCtx();
+                const now = ctx.currentTime;
+                if (level === 'PASS' || level === 'pass') {
+                    playTone(523, 0.15, now, 0.12);
+                    playTone(659, 0.2, now + 0.1, 0.12);
+                } else if (level === 'FLAG' || level === 'flag') {
+                    playTone(440, 0.3, now, 0.1);
+                } else {
+                    playTone(165, 0.2, now, 0.15);
+                    playTone(131, 0.3, now + 0.15, 0.15);
+                }
+            } catch (e) { /* audio not available */ }
+        }
+
+        function toggleAudioMute() {
+            audioMuted = !audioMuted;
+            localStorage.setItem('mu-audio-muted', audioMuted);
+            document.getElementById('audio-toggle').textContent = audioMuted ? '\u{1F509}' : '\u{1F50A}';
+        }
+        document.getElementById('audio-toggle').textContent = audioMuted ? '\u{1F509}' : '\u{1F50A}';
+
+        /* ── Dark mode ── */
+        function toggleTheme() {
+            const isDark = document.body.classList.toggle('dark');
+            localStorage.setItem('mu-theme', isDark ? 'dark' : 'light');
+            document.getElementById('theme-toggle').textContent = isDark ? '\u2600' : '\u263D';
+            renderMonitor();
+        }
+
+        (function initTheme() {
+            const saved = localStorage.getItem('mu-theme');
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            if (saved === 'dark' || (!saved && prefersDark)) {
+                document.body.classList.add('dark');
+                document.getElementById('theme-toggle').textContent = '\u2600';
+            }
+        })();
+
+        /* ── Demo mode ── */
+        const DEMO_SCRIPT = [
+            { query: "My VPN keeps disconnecting when I switch to WiFi, what should I do?", delay: 5000 },
+            { query: "What's the guaranteed response time for a critical issue on the Gold SLA tier?", delay: 5000 },
+            { query: "Can you check what equipment is assigned to EMP-008?", delay: 5000 },
+            { query: "I need to report a high priority incident — our email server in building B is down and 50 users are affected. Reporter is John Smith.", delay: 5000 },
+        ];
+        let demoRunning = false;
+        let demoAbort = false;
+
+        function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+        async function startDemo() {
+            if (demoRunning) return;
+            demoRunning = true;
+            demoAbort = false;
+
+            const indicator = document.createElement('div');
+            indicator.id = 'demo-indicator';
+            indicator.textContent = 'DEMO';
+            document.body.appendChild(indicator);
+
+            const cx = window.innerWidth / 2 - THREAD_WIDTH / 2;
+            spawnThread(cx + window.scrollX, 60 + window.scrollY);
+            const threadId = activeThreadId;
+
+            for (let i = 0; i < DEMO_SCRIPT.length; i++) {
+                if (demoAbort) break;
+                const step = DEMO_SCRIPT[i];
+
+                await sleep(1200);
+                if (demoAbort) break;
+
+                const inp = document.getElementById(`input-${threadId}`);
+                if (!inp) break;
+                inp.value = '';
+                for (let c = 0; c < step.query.length; c++) {
+                    if (demoAbort) break;
+                    inp.value += step.query[c];
+                    await sleep(30 + Math.random() * 30);
+                }
+                if (demoAbort) break;
+
+                await sendMessage(threadId);
+
+                while (threads[threadId] && threads[threadId].isProcessing) {
+                    await sleep(200);
+                    if (demoAbort) break;
+                }
+                if (demoAbort) break;
+
+                await sleep(step.delay);
+            }
+
+            demoRunning = false;
+            const ind = document.getElementById('demo-indicator');
+            if (ind) ind.remove();
+        }
+
+        function stopDemo() { demoAbort = true; }
+
+        /* ── Global keyboard shortcuts ── */
         document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && dashOpen) toggleDashboard();
+            if (e.key === 'Escape') {
+                if (demoRunning) stopDemo();
+                if (dashOpen) toggleDashboard();
+                closeSecurityPanel();
+            }
+            if ((e.ctrlKey || e.metaKey) && e.key === 'd') {
+                e.preventDefault();
+                if (demoRunning) stopDemo(); else startDemo();
+            }
         });
     </script>
 </body>

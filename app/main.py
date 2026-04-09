@@ -1,5 +1,6 @@
 """LocalDesk — main FastAPI application with chat orchestration."""
 
+import asyncio
 import json
 import logging
 import sqlite3
@@ -11,6 +12,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from opentelemetry import trace
+from starlette.responses import StreamingResponse
 
 from app.config import DATABASE_PATH, MODE, SERVER_HOST, SERVER_PORT
 from app.guardrails.pipeline import post_process, pre_process
@@ -60,15 +62,8 @@ async def index():
     return HTMLResponse(index_path.read_text())
 
 
-@app.post("/api/chat")
-async def chat(request: Request) -> JSONResponse:
-    body = await request.json()
-    user_message = body.get("message", "").strip()
-    session_id = body.get("session_id", "default")
-
-    if not user_message:
-        return JSONResponse({"error": "Empty message"}, status_code=400)
-
+def _run_chat_pipeline(user_message: str, session_id: str) -> dict:
+    """Core pipeline: pre-process -> LLM+tools -> post-process. Returns result dict."""
     with tracer.start_as_current_span(
         "chat_request",
         attributes={
@@ -94,13 +89,12 @@ async def chat(request: Request) -> JSONResponse:
             root_span.set_attribute("mu.blocked_by", "input_filter")
             root_span.set_attribute("mu.guardrail_triggers",
                                     json.dumps(pre_result.guardrail_triggers))
-            return JSONResponse(
-                {
-                    "response": pre_result.response,
-                    "tool_calls": [],
-                    "guardrail_triggers": pre_result.guardrail_triggers,
-                }
-            )
+            return {
+                "response": pre_result.response,
+                "tool_calls": [],
+                "guardrail_triggers": pre_result.guardrail_triggers,
+                "judge_verdict": "PASS",
+            }
 
         # Build conversation history
         if session_id not in _conversations:
@@ -296,17 +290,64 @@ async def chat(request: Request) -> JSONResponse:
                 "mu.tools_used", json.dumps([tc["name"] for tc in all_tool_calls])
             )
 
-        return JSONResponse(
-            {
-                "response": post_result.response,
-                "tool_calls": [
-                    {"name": tc["name"], "arguments": tc["arguments"]}
-                    for tc in all_tool_calls
-                ],
-                "guardrail_triggers": post_result.guardrail_triggers,
-                "judge_verdict": post_result.judge_verdict.get("verdict", "PASS"),
-            }
-        )
+        return {
+            "response": post_result.response,
+            "tool_calls": [
+                {"name": tc["name"], "arguments": tc["arguments"]}
+                for tc in all_tool_calls
+            ],
+            "guardrail_triggers": post_result.guardrail_triggers,
+            "judge_verdict": post_result.judge_verdict.get("verdict", "PASS"),
+        }
+
+
+@app.post("/api/chat")
+async def chat(request: Request) -> JSONResponse:
+    body = await request.json()
+    user_message = body.get("message", "").strip()
+    session_id = body.get("session_id", "default")
+
+    if not user_message:
+        return JSONResponse({"error": "Empty message"}, status_code=400)
+
+    result = _run_chat_pipeline(user_message, session_id)
+    return JSONResponse(result)
+
+
+@app.post("/api/chat-stream")
+async def chat_stream(request: Request):
+    """SSE streaming version — runs full pipeline then streams response word-by-word."""
+    body = await request.json()
+    user_message = body.get("message", "").strip()
+    session_id = body.get("session_id", "default")
+
+    if not user_message:
+        async def error_stream():
+            yield f"data: {json.dumps({'type': 'error', 'content': 'Empty message'})}\n\n"
+        return StreamingResponse(error_stream(), media_type="text/event-stream")
+
+    async def event_stream():
+        result = await asyncio.to_thread(_run_chat_pipeline, user_message, session_id)
+
+        # Send metadata first
+        meta = {
+            "type": "meta",
+            "tool_calls": result["tool_calls"],
+            "guardrail_triggers": result["guardrail_triggers"],
+            "judge_verdict": result["judge_verdict"],
+        }
+        yield f"data: {json.dumps(meta)}\n\n"
+
+        # Stream response text word-by-word
+        words = result["response"].split(" ")
+        for i, word in enumerate(words):
+            chunk = word if i == 0 else " " + word
+            yield f"data: {json.dumps({'type': 'chunk', 'content': chunk})}\n\n"
+            await asyncio.sleep(0.03)
+
+        yield f"data: {json.dumps({'type': 'done'})}\n\n"
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
 
 
 @app.post("/api/reset")
