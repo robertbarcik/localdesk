@@ -3,6 +3,7 @@
 
 import sqlite3
 import sys
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -121,36 +122,57 @@ def seed():
         assets,
     )
 
-    # Seed incidents (so dashboard has data on first load)
+    # Seed incidents (so dashboard has data on first load).
+    # Timestamps are relative to seed time so the SLA radar starts with a
+    # realistic mix: some tickets comfortably inside their SLA, one breached.
+    def ago(hours):
+        return (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
+
     incidents = [
         ("INC-00001", "Email client not syncing after Outlook update", "medium", "software",
-         "Anna Kováčová", "open", None, None, "2026-04-07T09:15:00"),
+         "Anna Kováčová", "open", None, None, ago(3)),
         ("INC-00002", "VPN disconnects every 30 minutes on WiFi", "high", "network",
-         "Martin Horváth", "open", None, None, "2026-04-06T14:30:00"),
+         "Martin Horváth", "open", None, None, ago(5)),
         ("INC-00003", "Cannot access shared drive S:\\Finance after password reset", "high", "access",
          "Jana Novotná", "escalated", "User locked out of critical finance data for 24+ hours",
-         "2026-04-06T08:00:00", "2026-04-05T11:00:00"),
+         ago(20), ago(26)),
         ("INC-00004", "Printer on 3rd floor not responding to any jobs", "low", "hardware",
-         "Eva Tóthová", "open", None, None, "2026-04-07T16:45:00"),
+         "Eva Tóthová", "open", None, None, ago(8)),
         ("INC-00005", "Laptop screen flickering intermittently", "medium", "hardware",
-         "Ondrej Kiss", "open", None, None, "2026-04-04T08:20:00"),
+         "Ondrej Kiss", "open", None, None, ago(14)),
         ("INC-00006", "MFA push notifications not arriving on new phone", "high", "access",
-         "Lucia Nagyová", "resolved", None, None, "2026-04-03T10:00:00"),
+         "Lucia Nagyová", "resolved", None, None, ago(30)),
         ("INC-00007", "Network outage in Building B affecting 40+ users", "critical", "network",
          "Michal Varga", "escalated", "Major outage impacting full building — requires infrastructure team",
-         "2026-04-06T08:30:00", "2026-04-06T07:45:00"),
+         ago(6), ago(7)),
         ("INC-00008", "New employee needs full IT onboarding — laptop, accounts, VPN", "low", "other",
-         "Simona Gál", "open", None, None, "2026-04-08T13:00:00"),
+         "Simona Gál", "open", None, None, ago(2)),
         ("INC-00009", "SAP client crashing on launch after Windows update", "critical", "software",
-         "Dávid Farkas", "open", None, None, "2026-04-08T15:30:00"),
+         "Dávid Farkas", "open", None, None, ago(1)),
         ("INC-00010", "Remote desktop session freezing during video calls", "medium", "software",
-         "Katarína Balázsová", "resolved", None, None, "2026-04-02T09:10:00"),
+         "Katarína Balázsová", "resolved", None, None, ago(40)),
     ]
     cur.executemany(
         "INSERT INTO incidents (ticket_id, summary, priority, category, reporter_name, status, "
         "escalation_reason, escalated_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
         incidents,
     )
+
+    # Ops tables (also created at runtime by app.db.ensure_schema — kept in
+    # sync here so a fresh seed matches; never dropped, data survives re-seeds)
+    cur.executescript("""
+        CREATE TABLE IF NOT EXISTS events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            ts TEXT NOT NULL, event_type TEXT NOT NULL, severity TEXT NOT NULL,
+            source TEXT, message TEXT NOT NULL, metadata_json TEXT);
+        CREATE INDEX IF NOT EXISTS idx_events_ts ON events(ts);
+        CREATE TABLE IF NOT EXISTS request_metrics (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            ts TEXT NOT NULL, session_id TEXT, role TEXT NOT NULL, model TEXT NOT NULL,
+            prompt_tokens INTEGER, completion_tokens INTEGER,
+            cost_usd REAL, duration_s REAL);
+        CREATE INDEX IF NOT EXISTS idx_metrics_ts ON request_metrics(ts);
+    """)
 
     conn.commit()
     conn.close()

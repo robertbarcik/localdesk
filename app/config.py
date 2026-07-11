@@ -33,6 +33,16 @@ LLM_BASE_URL: str = _expand(_mode_cfg.get("base_url", ""))
 LLM_MODEL: str = _expand(_mode_cfg.get("model", ""))
 LLM_API_KEY: str = _expand(_mode_cfg.get("api_key", "not-needed"))
 
+_openai_cfg = _raw.get("openai", {})
+OPENAI_BASE_URL: str = _openai_cfg.get("base_url", "https://api.openai.com/v1")
+OPENAI_API_KEY: str = _expand(_openai_cfg.get("api_key", ""))
+
+ROLES: dict = _raw.get("roles", {})
+
+_sim_cfg = _raw.get("simulation", {})
+SENTINEL_CADENCE_S: int = _sim_cfg.get("sentinel_cadence_s", 25)
+MAX_EVENTS_PER_MIN: int = _sim_cfg.get("max_events_per_min", 12)
+
 EMBEDDING_MODEL: str = _raw["embedding"]["model"]
 EMBEDDING_BASE_URL: str = _raw["embedding"]["base_url"]
 

@@ -79,8 +79,10 @@ def post_process(
     result.sanitized_input = sanitized_input
     result.guardrail_triggers = list(pre_triggers)
 
-    # Layer 2: Static output validation
-    output_validation = validate_output(model_response, context_chunks)
+    # Layer 2: Static output validation (tool results count as grounding —
+    # they come from the database and are authoritative)
+    tool_results = [str(tc.get("result", "")) for tc in tool_calls]
+    output_validation = validate_output(model_response, context_chunks, tool_results)
     if output_validation.flags:
         result.guardrail_triggers.extend(output_validation.flags)
 

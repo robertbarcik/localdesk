@@ -4,7 +4,7 @@ import json
 import logging
 import time
 
-from app.llm_client import get_client, get_model
+from app.llm_client import chat_kwargs, get_role_client, parse_json_loosely
 from app.prompts.judge_system import JUDGE_SYSTEM_PROMPT
 from app.tracing import tracer
 
@@ -25,8 +25,7 @@ def judge_response(user_query: str, agent_response: str, retrieved_context: str)
     )
 
     try:
-        client = get_client()
-        model = get_model()
+        client, model = get_role_client("judge")
         with tracer.start_as_current_span(
             "gen_ai.chat",
             attributes={
@@ -45,8 +44,7 @@ def judge_response(user_query: str, agent_response: str, retrieved_context: str)
                     {"role": "system", "content": JUDGE_SYSTEM_PROMPT},
                     {"role": "user", "content": evaluation_input},
                 ],
-                temperature=0.0,
-                max_tokens=512,
+                **chat_kwargs(model, max_tokens=900, temperature=0.0),
             )
             duration = time.monotonic() - t0
             span.set_attribute("mu.llm_duration_s", round(duration, 3))
@@ -59,17 +57,17 @@ def judge_response(user_query: str, agent_response: str, retrieved_context: str)
                     "gen_ai.usage.completion_tokens", resp.usage.completion_tokens or 0
                 )
 
+            if resp.usage:
+                from app.ops.metrics import record_llm_usage
+                record_llm_usage(
+                    "judge", model,
+                    resp.usage.prompt_tokens or 0,
+                    resp.usage.completion_tokens or 0,
+                    duration,
+                )
+
             content = resp.choices[0].message.content.strip()
-
-            # Try to parse JSON from response
-            # The model might wrap it in markdown code fences
-            if "```" in content:
-                content = content.split("```")[1]
-                if content.startswith("json"):
-                    content = content[4:]
-                content = content.strip()
-
-            verdict = json.loads(content)
+            verdict = parse_json_loosely(content)
             # Ensure required fields
             if "verdict" not in verdict:
                 verdict["verdict"] = "PASS"

@@ -27,16 +27,21 @@ def init_tracing() -> trace.Tracer:
         }
     )
 
-    exporter = OTLPSpanExporter(
-        endpoint=_DT_ENDPOINT,
-        headers={"Authorization": f"Api-Token {_DT_API_TOKEN}"},
-    )
-
     provider = TracerProvider(resource=resource)
-    provider.add_span_processor(BatchSpanProcessor(exporter))
-    trace.set_tracer_provider(provider)
 
-    logger.info("OpenTelemetry tracing initialized — exporting to Dynatrace")
+    # Only export when Dynatrace is actually configured — otherwise the
+    # batch processor retries against a dead endpoint on every flush.
+    if _DT_API_TOKEN:
+        exporter = OTLPSpanExporter(
+            endpoint=_DT_ENDPOINT,
+            headers={"Authorization": f"Api-Token {_DT_API_TOKEN}"},
+        )
+        provider.add_span_processor(BatchSpanProcessor(exporter))
+        logger.info("OpenTelemetry tracing initialized — exporting to Dynatrace")
+    else:
+        logger.info("OpenTelemetry tracing initialized — no DT_API_TOKEN, spans not exported")
+
+    trace.set_tracer_provider(provider)
     return trace.get_tracer("mu.app", "1.0.0")
 
 

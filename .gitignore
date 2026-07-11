@@ -13,5 +13,7 @@ build/
 vectorstore/
 logs/
 data/db/*.db
+data/db/*.db-shm
+data/db/*.db-wal
 .DS_Store
 *.gguf

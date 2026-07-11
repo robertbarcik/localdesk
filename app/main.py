@@ -8,22 +8,33 @@ import time
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from opentelemetry import trace
 from starlette.responses import StreamingResponse
 
-from app.config import DATABASE_PATH, MODE, SERVER_HOST, SERVER_PORT
+from app.audit_chat import router as audit_chat_router
+from app.config import DATABASE_PATH, MODE, ROLES, SERVER_HOST, SERVER_PORT
+from app.conversations import _conversations, get_or_create
+from app.db import ensure_schema
 from app.guardrails.pipeline import post_process, pre_process
-from app.llm_client import get_client, get_model
-from app.prompts.agent_system import AGENT_SYSTEM_PROMPT
+from app.llm_client import get_client, get_model, voice_available
+from app.ops.metrics import record_llm_usage
+from app.ops.metrics import router as metrics_router
+from app.ops.sentinel import router as sentinel_router
+from app.ops.sentinel import sentinel
+from app.ops.simulation import router as simulation_router
+from app.ops.simulation import simulation
 from app.tools.assets import lookup_asset
 from app.tools.definitions import TOOLS
 from app.tools.incidents import create_incident, escalate_ticket
 from app.tools.knowledge import search_kb
 from app.tools.sla import check_sla
+from app.reports.router import router as reports_router
 from app.tracing import tracer
+from app.voice import router as voice_router
+from app.ws_hub import hub
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -37,18 +48,43 @@ TOOL_HANDLERS = {
     "search_kb": lambda args: search_kb(**args),
 }
 
-# In-memory conversation store (session_id -> messages)
-_conversations: dict[str, list[dict]] = {}
+async def _sim_state_changed(running: bool):
+    """Sentinel lifecycle is tied to the simulation toggle."""
+    if running:
+        await sentinel.start()
+    else:
+        await sentinel.stop()
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("LocalDesk starting up")
+    ensure_schema()
+    hub.set_loop(asyncio.get_running_loop())
+    simulation.on_state_change = _sim_state_changed
     yield
+    await simulation.stop()
+    await sentinel.stop()
     logger.info("LocalDesk shutting down")
 
 
 app = FastAPI(title="LocalDesk", lifespan=lifespan)
+app.include_router(metrics_router)
+app.include_router(simulation_router)
+app.include_router(sentinel_router)
+app.include_router(reports_router)
+app.include_router(audit_chat_router)
+app.include_router(voice_router)
+
+
+@app.websocket("/ws")
+async def ws_endpoint(ws: WebSocket):
+    await hub.connect(ws)
+    try:
+        while True:
+            await ws.receive_text()  # client pings; content ignored
+    except WebSocketDisconnect:
+        hub.disconnect(ws)
 
 # Serve static files (frontend)
 static_dir = Path(__file__).parent.parent / "static"
@@ -97,9 +133,7 @@ def _run_chat_pipeline(user_message: str, session_id: str) -> dict:
             }
 
         # Build conversation history
-        if session_id not in _conversations:
-            _conversations[session_id] = [{"role": "system", "content": AGENT_SYSTEM_PROMPT}]
-        messages = _conversations[session_id]
+        messages = get_or_create(session_id)
         messages.append({"role": "user", "content": pre_result.sanitized_input})
 
         # LLM call with tool use loop
@@ -248,9 +282,14 @@ def _run_chat_pipeline(user_message: str, session_id: str) -> dict:
 
         messages.append({"role": "assistant", "content": assistant_content})
 
-        # Keep conversation manageable (last 20 messages + system)
+        # Keep conversation manageable (last ~20 messages + system).
+        # The window must start on a user turn — cutting mid tool exchange
+        # leaves orphaned tool messages the API rejects.
         if len(messages) > 40:
-            _conversations[session_id] = [messages[0]] + messages[-20:]
+            cut = len(messages) - 20
+            while cut > 1 and messages[cut].get("role") != "user":
+                cut -= 1
+            _conversations[session_id] = [messages[0]] + messages[cut:]
 
         # Layers 2 & 3: Post-process (output validation + LLM judge)
         with tracer.start_as_current_span(
@@ -289,6 +328,19 @@ def _run_chat_pipeline(user_message: str, session_id: str) -> dict:
             root_span.set_attribute(
                 "mu.tools_used", json.dumps([tc["name"] for tc in all_tool_calls])
             )
+
+        record_llm_usage(
+            "agent", model, total_prompt_tokens, total_completion_tokens,
+            0.0, session_id=session_id,
+        )
+
+        # Synthetic incidents from tools land on the live dashboard immediately
+        for tc in all_tool_calls:
+            if tc["name"] == "create_incident":
+                try:
+                    hub.broadcast_threadsafe("incident_created", json.loads(tc["result"]))
+                except (json.JSONDecodeError, TypeError):
+                    pass
 
         return {
             "response": post_result.response,
@@ -361,8 +413,20 @@ async def reset_session(request: Request) -> JSONResponse:
 @app.get("/api/status")
 async def status() -> JSONResponse:
     from app.config import LLM_BASE_URL, LLM_MODEL, MODE
+    from app.llm_client import get_role_client
 
-    return JSONResponse({"mode": MODE, "model": LLM_MODEL, "base_url": LLM_BASE_URL})
+    roles = {}
+    for role in ROLES:
+        _, resolved_model = get_role_client(role) if role != "voice" else (None, ROLES[role].get("model", ""))
+        roles[role] = resolved_model
+    return JSONResponse({
+        "mode": MODE,
+        "model": LLM_MODEL,
+        "base_url": LLM_BASE_URL,
+        "voice_available": voice_available(),
+        "simulation_running": simulation.running,
+        "roles": roles,
+    })
 
 
 @app.get("/api/dashboard")

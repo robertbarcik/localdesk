@@ -13,6 +13,25 @@ cloud:
   model: "qwen/qwen3-30b-a3b"
   api_key: "${OPENROUTER_API_KEY}"
 
+# OpenAI (background roles + voice). Missing key => roles fall back to the agent model.
+openai:
+  base_url: "https://api.openai.com/v1"
+  api_key: "${OPENAI_API_KEY}"
+
+# Per-role model routing. provider "mode" follows the local/cloud switch above.
+roles:
+  agent:      { provider: mode }
+  judge:      { provider: mode }   # override: { provider: openai, model: gpt-5.4-mini }
+  sentinel:   { provider: openai, model: gpt-5.4-nano }
+  writer:     { provider: openai, model: gpt-5.4-mini }
+  audit_chat: { provider: openai, model: gpt-5.4-nano }
+  voice:      { provider: openai, model: gpt-realtime-2.1-mini }
+
+# Ops simulation + sentinel pacing
+simulation:
+  sentinel_cadence_s: 25
+  max_events_per_min: 12
+
 # Embedding model (always local via Ollama)
 embedding:
   model: "nomic-embed-text"

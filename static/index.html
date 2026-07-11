@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>mu</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext x='50' y='72' font-size='68' text-anchor='middle' fill='%23b0bda7' font-family='Helvetica'%3E%CE%BC%3C/text%3E%3C/svg%3E">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -296,7 +297,7 @@
 
         #hint {
             position: fixed;
-            bottom: 48px;
+            bottom: 100px;
             left: 50%;
             transform: translateX(-50%);
             font-size: 13px;
@@ -841,6 +842,433 @@
             color: rgba(255, 120, 120, 0.7);
             background: rgba(255, 100, 100, 0.12);
         }
+
+        /* ── Ops room: shared corner button ── */
+        .corner-btn {
+            position: fixed;
+            bottom: 16px;
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            border: 1px solid rgba(0,0,0,0.08);
+            background: rgba(255,255,255,0.7);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            color: rgba(0,0,0,0.35);
+            transition: color 0.2s, background 0.2s, border-color 0.2s;
+            z-index: 50;
+        }
+        .corner-btn:hover {
+            color: rgba(0,0,0,0.6);
+            background: rgba(255,255,255,0.9);
+            border-color: rgba(0,0,0,0.15);
+        }
+        .corner-btn.active {
+            color: rgba(255,255,255,0.8);
+            background: rgba(18, 22, 18, 0.85);
+            border-color: rgba(255,255,255,0.1);
+        }
+        body.dark .corner-btn {
+            border-color: rgba(255,255,255,0.08);
+            background: rgba(255,255,255,0.08);
+            color: rgba(255,255,255,0.4);
+        }
+        body.dark .corner-btn:hover {
+            background: rgba(255,255,255,0.12);
+            color: rgba(255,255,255,0.7);
+        }
+        body.dark .corner-btn.active {
+            background: rgba(220,235,220,0.85);
+            color: rgba(18,22,18,0.8);
+        }
+        #sim-toggle    { right: 96px; }
+        #charts-toggle { right: 136px; }
+        #report-toggle { right: 176px; }
+        #audit-toggle-btn { right: 216px; }
+        #sim-toggle.active {
+            color: #7fc98a;
+            background: rgba(18, 22, 18, 0.85);
+            box-shadow: 0 0 14px rgba(110, 200, 130, 0.35);
+        }
+
+        /* ── Ambient telemetry layer ── */
+        #telemetry-layer {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 0;
+            overflow: hidden;
+        }
+        .telemetry-blip {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            pointer-events: none;
+            animation: blipFade 6s ease-out forwards;
+        }
+        .blip-info     { background: radial-gradient(circle, rgba(122,158,201,0.9) 0%, rgba(122,158,201,0) 70%); }
+        .blip-warning  { background: radial-gradient(circle, rgba(232,160,64,0.9)  0%, rgba(232,160,64,0)  70%); }
+        .blip-critical { background: radial-gradient(circle, rgba(224,96,80,0.95)  0%, rgba(224,96,80,0)   70%); }
+        @keyframes blipFade {
+            0%   { transform: scale(0.4); opacity: 0; }
+            8%   { transform: scale(2.6); opacity: 0.9; }
+            30%  { transform: scale(1.6); opacity: 0.55; }
+            100% { transform: scale(1);   opacity: 0; }
+        }
+
+        #ticker {
+            position: fixed;
+            bottom: 16px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 10px;
+            font-family: 'SF Mono', 'Menlo', 'Consolas', monospace;
+            color: rgba(0,0,0,0.30);
+            letter-spacing: 0.5px;
+            white-space: nowrap;
+            pointer-events: none;
+            user-select: none;
+            z-index: 0;
+            opacity: 0;
+            transition: opacity 0.6s ease;
+            max-width: 46vw;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        #ticker.visible { opacity: 1; }
+        body.dark #ticker { color: rgba(255,255,255,0.30); }
+        #ticker .tick-sev-warning  { color: rgba(232,160,64,0.8); }
+        #ticker .tick-sev-critical { color: rgba(224,96,80,0.85); }
+        #ticker .tick-sev-info     { color: inherit; }
+
+        /* ── Sentinel / audit thread flavors ── */
+        .thread.sentinel {
+            box-shadow: 0 0 0 1px rgba(110, 200, 130, 0.35), 0 0 28px rgba(110, 200, 130, 0.28), var(--shadow-active);
+        }
+        .thread.sentinel.sev-critical {
+            box-shadow: 0 0 0 1px rgba(224, 96, 80, 0.4), 0 0 28px rgba(224, 96, 80, 0.3), var(--shadow-active);
+        }
+        .thread-tag {
+            position: absolute;
+            top: -9px;
+            left: 14px;
+            font-size: 9px;
+            font-weight: 600;
+            letter-spacing: 2.5px;
+            text-transform: uppercase;
+            padding: 2px 8px;
+            border-radius: 8px;
+            z-index: 3;
+            pointer-events: none;
+        }
+        .thread-tag-sentinel { background: rgba(110, 200, 130, 0.16); color: #4e8f5c; }
+        .thread.sev-critical .thread-tag-sentinel { background: rgba(224, 96, 80, 0.16); color: #c05050; }
+        .thread-tag-audit { background: rgba(160, 120, 220, 0.16); color: #8a6ab8; }
+        body.dark .thread-tag-sentinel { color: #7fc98a; }
+        body.dark .thread-tag-audit { color: #b79ae0; }
+        .thread.audit {
+            box-shadow: 0 0 0 1px rgba(160, 120, 220, 0.3), 0 0 24px rgba(160, 120, 220, 0.2), var(--shadow-active);
+        }
+
+        /* ── Charts panel (left slide-in, system glass) ── */
+        #charts-panel {
+            position: fixed;
+            bottom: 56px;
+            left: 16px;
+            width: 360px;
+            max-height: 82vh;
+            overflow-y: auto;
+            background: rgba(18, 22, 18, 0.94);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            color: rgba(255,255,255,0.8);
+            border-radius: 16px;
+            border: 1px solid rgba(255,255,255,0.06);
+            padding: 24px 26px;
+            z-index: 50;
+            opacity: 0;
+            pointer-events: none;
+            transform: translateY(8px) scale(0.96);
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+        #charts-panel.open {
+            opacity: 1;
+            pointer-events: auto;
+            transform: translateY(0) scale(1);
+        }
+        .chart-card { margin-bottom: 22px; }
+        .chart-card:last-child { margin-bottom: 4px; }
+        .chart-title {
+            font-size: 10px;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            color: rgba(255,255,255,0.3);
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+        }
+        .chart-title .chart-note {
+            letter-spacing: 0.5px;
+            text-transform: none;
+            color: rgba(255,255,255,0.22);
+            font-family: 'SF Mono', 'Menlo', monospace;
+        }
+        .chart-svg { display: block; width: 100%; }
+        .chart-axis-label {
+            font-size: 8.5px;
+            font-family: 'SF Mono', 'Menlo', monospace;
+            fill: rgba(255,255,255,0.25);
+        }
+        .radar-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 7px;
+            font-size: 11px;
+        }
+        .radar-id {
+            font-family: 'SF Mono', 'Menlo', monospace;
+            font-size: 10px;
+            color: rgba(255,255,255,0.45);
+            width: 74px;
+            flex-shrink: 0;
+        }
+        .radar-bar-bg {
+            flex: 1;
+            height: 4px;
+            background: rgba(255,255,255,0.06);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+        .radar-bar {
+            height: 100%;
+            border-radius: 2px;
+            transition: width 1s linear;
+        }
+        .radar-ok       { background: #5a9a5e; }
+        .radar-warning  { background: #e8a040; }
+        .radar-breached { background: #e06050; box-shadow: 0 0 8px rgba(224,96,80,0.5); }
+        .radar-time {
+            font-family: 'SF Mono', 'Menlo', monospace;
+            font-size: 10px;
+            width: 62px;
+            text-align: right;
+            flex-shrink: 0;
+            color: rgba(255,255,255,0.5);
+        }
+        .radar-time.breached { color: #e06050; }
+        .cost-total {
+            text-align: center;
+            font-size: 28px;
+            font-weight: 200;
+            letter-spacing: 1px;
+            color: rgba(255,255,255,0.75);
+            font-family: 'SF Mono', 'Menlo', monospace;
+        }
+        .cost-sub {
+            text-align: center;
+            font-size: 9.5px;
+            letter-spacing: 2px;
+            color: rgba(255,255,255,0.25);
+            margin-bottom: 12px;
+        }
+        .cost-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            padding: 3px 0;
+            color: rgba(255,255,255,0.55);
+        }
+        .cost-row .cost-val {
+            font-family: 'SF Mono', 'Menlo', monospace;
+            color: rgba(255,255,255,0.65);
+        }
+
+        /* ── Reports panel ── */
+        #report-panel {
+            position: fixed;
+            bottom: 56px;
+            right: 16px;
+            width: 380px;
+            max-height: 78vh;
+            overflow-y: auto;
+            background: rgba(18, 22, 18, 0.94);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            color: rgba(255,255,255,0.8);
+            border-radius: 16px;
+            border: 1px solid rgba(255,255,255,0.06);
+            padding: 24px 28px;
+            z-index: 51;
+            opacity: 0;
+            pointer-events: none;
+            transform: translateY(8px) scale(0.96);
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+        #report-panel.open {
+            opacity: 1;
+            pointer-events: auto;
+            transform: translateY(0) scale(1);
+        }
+        .report-actions {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            margin-bottom: 16px;
+        }
+        .report-btn {
+            font-size: 10px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: rgba(255,255,255,0.55);
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 8px;
+            padding: 7px 14px;
+            cursor: pointer;
+            font-family: inherit;
+            transition: background 0.2s, color 0.2s;
+        }
+        .report-btn:hover { background: rgba(255,255,255,0.12); color: rgba(255,255,255,0.85); }
+        .report-btn.active { background: rgba(220,235,220,0.85); color: rgba(18,22,18,0.85); }
+        #report-content {
+            font-size: 12px;
+            line-height: 1.65;
+            color: rgba(255,255,255,0.65);
+        }
+        #report-content strong { color: rgba(255,255,255,0.85); font-weight: 600; }
+        #report-content code, #report-content pre {
+            background: rgba(255,255,255,0.06);
+            font-family: 'SF Mono', 'Menlo', monospace;
+            font-size: 11px;
+            border-radius: 4px;
+            padding: 1px 5px;
+        }
+        .cluster-card {
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 10px;
+            padding: 12px 14px;
+            margin-bottom: 10px;
+        }
+        .cluster-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: rgba(255,255,255,0.8);
+            margin-bottom: 4px;
+        }
+        .cluster-cause {
+            font-size: 11px;
+            color: rgba(255,255,255,0.45);
+            margin-bottom: 8px;
+        }
+        .cluster-chip {
+            display: inline-block;
+            font-family: 'SF Mono', 'Menlo', monospace;
+            font-size: 9.5px;
+            color: rgba(255,255,255,0.55);
+            background: rgba(255,255,255,0.07);
+            border-radius: 5px;
+            padding: 2px 7px;
+            margin: 0 4px 4px 0;
+        }
+        .report-meta {
+            text-align: center;
+            font-size: 9px;
+            letter-spacing: 1.5px;
+            color: rgba(255,255,255,0.2);
+            margin-top: 14px;
+            font-family: 'SF Mono', 'Menlo', monospace;
+        }
+
+        /* ── Voice orb ── */
+        #voice-orb {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 54px;
+            height: 54px;
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            z-index: 60;
+            background: radial-gradient(circle at 35% 30%, rgba(190, 210, 180, 0.95), rgba(140, 165, 135, 0.9));
+            box-shadow: 0 2px 18px rgba(140, 165, 135, 0.4);
+            transition: box-shadow 0.4s ease, background 0.4s ease, opacity 0.4s ease;
+            --amp: 0;
+        }
+        #voice-orb::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: 50%;
+            transform: scale(calc(1 + var(--amp) * 0.55));
+            border: 1.5px solid rgba(140, 190, 150, calc(0.15 + var(--amp) * 0.5));
+            transition: transform 0.08s linear;
+            pointer-events: none;
+        }
+        #voice-orb.disabled {
+            opacity: 0.30;
+            cursor: not-allowed;
+            filter: grayscale(0.8);
+        }
+        #voice-orb.connecting { animation: orbConnect 1.2s ease-in-out infinite; }
+        @keyframes orbConnect {
+            0%, 100% { box-shadow: 0 2px 18px rgba(140, 165, 135, 0.35); }
+            50%      { box-shadow: 0 2px 30px rgba(140, 190, 150, 0.7); }
+        }
+        #voice-orb.live {
+            background: radial-gradient(circle at 35% 30%, rgba(150, 220, 170, 1), rgba(90, 154, 94, 0.95));
+            box-shadow: 0 2px 26px rgba(110, 200, 130, 0.65);
+        }
+        #voice-orb.speaking {
+            background: radial-gradient(circle at 35% 30%, rgba(170, 210, 240, 1), rgba(100, 150, 200, 0.95));
+            box-shadow: 0 2px 28px rgba(120, 170, 220, 0.6);
+        }
+        #voice-hint {
+            position: fixed;
+            bottom: 82px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 10px;
+            letter-spacing: 2px;
+            color: rgba(0,0,0,0.3);
+            z-index: 60;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.4s ease;
+            white-space: nowrap;
+        }
+        #voice-hint.visible { opacity: 1; }
+        body.dark #voice-hint { color: rgba(255,255,255,0.35); }
+        #voice-tools {
+            position: fixed;
+            bottom: 82px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 6px;
+            z-index: 60;
+            pointer-events: none;
+        }
+        .voice-tool-chip {
+            font-size: 10px;
+            font-family: 'SF Mono', 'Menlo', monospace;
+            color: rgba(18,22,18,0.75);
+            background: rgba(220,235,220,0.9);
+            border-radius: 10px;
+            padding: 3px 10px;
+            animation: msgIn 0.25s ease;
+            box-shadow: 0 2px 10px rgba(110,200,130,0.3);
+        }
     </style>
 </head>
 <body>
@@ -856,10 +1284,32 @@
     <button id="theme-toggle" onclick="event.stopPropagation(); toggleTheme()" title="Toggle dark mode">&#9789;</button>
     <button id="dash-toggle" onclick="event.stopPropagation(); toggleDashboard()" title="Dashboard">&#9638;</button>
     <button id="audio-toggle" onclick="event.stopPropagation(); toggleAudioMute()" title="Toggle sound">&#128264;</button>
+    <button id="sim-toggle" class="corner-btn" onclick="event.stopPropagation(); toggleSimulation(event)" title="Ops simulation (shift-click: storm)">&#9654;</button>
+    <button id="charts-toggle" class="corner-btn" onclick="event.stopPropagation(); toggleCharts()" title="Live monitoring">&#8767;</button>
+    <button id="report-toggle" class="corner-btn" onclick="event.stopPropagation(); toggleReports()" title="Reports">&#10022;</button>
+    <button id="audit-toggle-btn" class="corner-btn" onclick="event.stopPropagation(); openAuditThread(event)" title="Ask the audit log">&#937;</button>
     <div id="dashboard-panel" onclick="event.stopPropagation()">
         <div class="dash-title">dashboard</div>
         <div id="dash-content"><div class="dash-empty">loading...</div></div>
     </div>
+    <div id="charts-panel" onclick="event.stopPropagation()">
+        <div class="dash-title">live monitoring</div>
+        <div id="charts-content"><div class="dash-empty">loading...</div></div>
+    </div>
+    <div id="report-panel" onclick="event.stopPropagation()">
+        <div class="dash-title">reports</div>
+        <div class="report-actions">
+            <button class="report-btn" id="report-btn-handover" onclick="loadHandover()">handover</button>
+            <button class="report-btn" id="report-btn-clusters" onclick="loadClusters()">clusters</button>
+        </div>
+        <div id="report-content"><div class="dash-empty">choose a report</div></div>
+    </div>
+    <div id="telemetry-layer"></div>
+    <div id="ticker"></div>
+    <button id="voice-orb" class="disabled" onclick="event.stopPropagation(); toggleVoice()" title="Voice mode"></button>
+    <div id="voice-hint"></div>
+    <div id="voice-tools"></div>
+    <audio id="voice-audio" autoplay></audio>
     <div id="hint">click anywhere</div>
 
     <script>
@@ -931,10 +1381,15 @@
             if (e.target.closest('#dashboard-panel')) return;
             if (e.target.closest('#theme-toggle')) return;
             if (e.target.closest('#audio-toggle')) return;
+            if (e.target.closest('.corner-btn')) return;
+            if (e.target.closest('#charts-panel')) return;
+            if (e.target.closest('#report-panel')) return;
+            if (e.target.closest('#voice-orb')) return;
             spawnThread(e.clientX, e.clientY);
         });
 
-        function spawnThread(x, y) {
+        function spawnThread(x, y, opts) {
+            opts = opts || {};
             const id = 'thread-' + Date.now() + '-' + (++threadCount);
 
             /* Position relative to page (account for scroll) */
@@ -963,20 +1418,29 @@
                 id,
                 left,
                 top,
-                conversationId: id,
+                conversationId: opts.sessionId || id,
                 isProcessing: false,
-                label: '',
+                label: opts.label || '',
+                kind: opts.kind || 'chat',
             };
             threads[id] = thread;
 
             /* Build DOM */
             const el = document.createElement('div');
-            el.className = 'thread active';
+            el.className = 'thread active' + (opts.kind ? ' ' + opts.kind : '');
+            if (opts.severity === 'critical') el.classList.add('sev-critical');
             el.id = id;
             el.style.left = left + 'px';
             el.style.top  = top  + 'px';
 
+            const tag = opts.kind === 'sentinel'
+                ? '<div class="thread-tag thread-tag-sentinel">sentinel</div>'
+                : opts.kind === 'audit'
+                    ? '<div class="thread-tag thread-tag-audit">audit</div>'
+                    : '';
+
             el.innerHTML = `
+                ${tag}
                 <div class="thread-drag-handle" data-thread="${id}"></div>
                 <div class="thread-label" id="label-${id}"></div>
                 <div class="thread-close" onclick="closeThread('${id}')" title="Close">×</div>
@@ -992,12 +1456,23 @@
             `;
 
             document.body.appendChild(el);
+            if (thread.label) {
+                const labelEl = document.getElementById(`label-${id}`);
+                if (labelEl) labelEl.textContent = thread.label;
+            }
             setActiveThread(id);
             document.getElementById(`input-${id}`).focus();
             brand.style.opacity = '0.4';
             setupDrag(el, id);
-            startHintCycling(id);
+            if (opts.kind === 'sentinel') {
+                removeHints(id);
+            } else if (opts.kind === 'audit') {
+                startHintCycling(id, AUDIT_HINTS);
+            } else {
+                startHintCycling(id);
+            }
             updateBodySize();
+            return id;
         }
 
         /* ── Thread activation ── */
@@ -1071,16 +1546,17 @@
             if (h) h.remove();
         }
 
-        function startHintCycling(threadId) {
+        function startHintCycling(threadId, pool) {
+            const hints = pool || HINTS;
             const btn = document.getElementById(`hint-btn-${threadId}`);
             if (!btn) return;
             let idx = 0;
-            btn.textContent = HINTS[idx];
+            btn.textContent = hints[idx];
             hintIntervals[threadId] = setInterval(() => {
                 btn.style.opacity = '0';
                 setTimeout(() => {
-                    idx = (idx + 1) % HINTS.length;
-                    btn.textContent = HINTS[idx];
+                    idx = (idx + 1) % hints.length;
+                    btn.textContent = hints[idx];
                     btn.style.opacity = '';
                 }, 250);
             }, 2000);
@@ -1395,6 +1871,7 @@
         async function sendMessage(threadId) {
             const thread = threads[threadId];
             if (!thread) return;
+            if (thread.kind === 'audit') return sendAuditMessage(threadId);
 
             const inp = document.getElementById(`input-${threadId}`);
             const text = inp.value.trim();
@@ -1552,6 +2029,7 @@
                 monitorMode = d.mode || 'local';
                 monitorModel = d.model || '';
                 renderMonitor();
+                initOpsState(d);
             } catch (e) { /* silent */ }
         })();
 
@@ -1830,6 +2308,625 @@
                 if (demoRunning) stopDemo(); else startDemo();
             }
         });
+
+        /* ══════════════════ OPS ROOM ══════════════════ */
+
+        /* ── Ops state ── */
+        let simRunning = false;
+        let voiceAvailable = false;
+        const simToggleBtn = document.getElementById('sim-toggle');
+        const voiceOrb = document.getElementById('voice-orb');
+
+        function initOpsState(status) {
+            voiceAvailable = !!status.voice_available;
+            voiceOrb.classList.toggle('disabled', !voiceAvailable);
+            voiceOrb.title = voiceAvailable
+                ? 'Voice mode — talk to the desk'
+                : 'Voice needs OPENAI_API_KEY in .env';
+            setSimState(!!status.simulation_running);
+        }
+
+        function setSimState(running) {
+            simRunning = running;
+            simToggleBtn.classList.toggle('active', running);
+            simToggleBtn.innerHTML = running ? '&#9724;' : '&#9654;';
+        }
+
+        /* ── WebSocket client ── */
+        let ws = null;
+        let wsRetryMs = 1000;
+
+        function connectWS() {
+            const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            ws = new WebSocket(`${proto}//${location.host}/ws`);
+            ws.onopen = () => { wsRetryMs = 1000; };
+            ws.onmessage = (e) => {
+                let msg;
+                try { msg = JSON.parse(e.data); } catch (err) { return; }
+                handleServerPush(msg);
+            };
+            ws.onclose = () => {
+                setTimeout(connectWS, wsRetryMs);
+                wsRetryMs = Math.min(wsRetryMs * 2, 10000);
+            };
+            ws.onerror = () => ws.close();
+        }
+        connectWS();
+        setInterval(() => {
+            if (ws && ws.readyState === WebSocket.OPEN) ws.send('ping');
+        }, 25000);
+
+        function handleServerPush(msg) {
+            const d = msg.data || {};
+            switch (msg.type) {
+                case 'telemetry_tick':   onTelemetry(d); break;
+                case 'incident_created': onIncidentCreated(d); break;
+                case 'sentinel_message': onSentinelMessage(d); break;
+                case 'chart_update':     onChartUpdate(d); break;
+                case 'sim_state':        setSimState(!!d.running); break;
+            }
+        }
+
+        /* ── Ambient telemetry ── */
+        const telemetryLayer = document.getElementById('telemetry-layer');
+        const tickerEl = document.getElementById('ticker');
+        let tickerTimer = null;
+        let eventCounter = 0;
+
+        function onTelemetry(ev) {
+            eventCounter++;
+
+            /* Blip at a random spot (kept away from screen center) */
+            if (telemetryLayer.childElementCount < 40) {
+                const blip = document.createElement('div');
+                blip.className = `telemetry-blip blip-${ev.severity || 'info'}`;
+                let bx = 5 + Math.random() * 90;
+                let by = 8 + Math.random() * 80;
+                if (bx > 30 && bx < 70 && by > 30 && by < 65) bx = bx < 50 ? bx - 25 : bx + 25;
+                blip.style.left = bx + 'vw';
+                blip.style.top = by + 'vh';
+                blip.addEventListener('animationend', () => blip.remove());
+                telemetryLayer.appendChild(blip);
+            }
+
+            /* Ticker line */
+            const t = (ev.ts || '').substring(11, 19);
+            tickerEl.innerHTML = `<span class="tick-sev-${esc(ev.severity || 'info')}">●</span> ${esc(t)} · ${esc(ev.message || '')}`;
+            tickerEl.classList.add('visible');
+            if (tickerTimer) clearTimeout(tickerTimer);
+            tickerTimer = setTimeout(() => tickerEl.classList.remove('visible'), 9000);
+
+            if (chartsOpen) chartCounters.eventsSinceRefresh++;
+        }
+
+        function onIncidentCreated(inc) {
+            if (!audioMuted) {
+                try {
+                    const now = getAudioCtx().currentTime;
+                    playTone(392, 0.12, now, 0.06);
+                } catch (e) { /* no audio */ }
+            }
+            const t = (inc.ticket_id || '');
+            tickerEl.innerHTML = `<span class="tick-sev-warning">◆</span> ticket ${esc(t)} filed · ${esc(inc.summary || '')}`;
+            tickerEl.classList.add('visible');
+            if (dashOpen) loadDashboard();
+        }
+
+        /* ── Sentinel materialization ── */
+        function onSentinelMessage(d) {
+            if (!audioMuted) {
+                try {
+                    const now = getAudioCtx().currentTime;
+                    playTone(660, 0.14, now, 0.10);
+                    playTone(880, 0.22, now + 0.12, 0.10);
+                } catch (e) { /* no audio */ }
+            }
+            /* Materialize on the right side, stacked below previous sentinel threads */
+            const sentinelCount = Object.values(threads).filter(t => t.kind === 'sentinel').length;
+            const x = Math.max(20, window.innerWidth - THREAD_WIDTH - 60);
+            const y = 70 + sentinelCount * 140;
+            const threadId = spawnThread(x + window.scrollX, y + window.scrollY, {
+                sessionId: d.session_id,
+                kind: 'sentinel',
+                label: d.headline || 'sentinel alert',
+                severity: d.severity,
+            });
+            addMessage(threadId, 'assistant', (d.headline ? d.headline + ' — ' : '') + (d.text || ''));
+        }
+
+        /* ── Simulation toggle ── */
+        async function toggleSimulation(e) {
+            if (e && e.shiftKey) {
+                await fetch('/api/simulation/storm', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ kind: 'vpn_outage' }),
+                });
+                return;
+            }
+            const url = simRunning ? '/api/simulation/stop' : '/api/simulation/start';
+            try {
+                const res = await fetch(url, { method: 'POST' });
+                const d = await res.json();
+                setSimState(!!d.running);
+            } catch (err) { /* server will push sim_state anyway */ }
+        }
+
+        /* ── Charts panel ── */
+        const chartsPanel = document.getElementById('charts-panel');
+        const chartsToggle = document.getElementById('charts-toggle');
+        const chartsContent = document.getElementById('charts-content');
+        let chartsOpen = false;
+        let chartsInterval = null;
+        let radarInterval = null;
+        let radarData = { tickets: [], fetchedAt: 0 };
+        let costData = null;
+        const chartCounters = { eventsSinceRefresh: 0 };
+
+        function toggleCharts() {
+            chartsOpen = !chartsOpen;
+            chartsPanel.classList.toggle('open', chartsOpen);
+            chartsToggle.classList.toggle('active', chartsOpen);
+            if (chartsOpen) {
+                refreshCharts();
+                chartsInterval = setInterval(refreshCharts, 10000);
+                radarInterval = setInterval(renderRadarTimes, 1000);
+            } else {
+                clearInterval(chartsInterval);
+                clearInterval(radarInterval);
+            }
+        }
+
+        async function refreshCharts() {
+            try {
+                const [tl, gr, radar, cost] = await Promise.all([
+                    fetch('/api/metrics/timeline?minutes=60&bucket=5').then(r => r.json()),
+                    fetch('/api/metrics/guardrails?hours=24').then(r => r.json()),
+                    fetch('/api/metrics/sla-radar').then(r => r.json()),
+                    fetch('/api/metrics/costs?minutes=240').then(r => r.json()),
+                ]);
+                radarData = { tickets: radar.tickets || [], fetchedAt: Date.now() };
+                costData = cost;
+                renderCharts(tl, gr);
+            } catch (e) {
+                chartsContent.innerHTML = '<div class="dash-empty">could not load metrics</div>';
+            }
+        }
+
+        function renderCharts(tl, gr) {
+            let html = '';
+
+            /* 1 — activity over time */
+            html += '<div class="chart-card">';
+            html += '<div class="chart-title"><span>activity · 60 min</span><span class="chart-note">events + incidents</span></div>';
+            html += renderTimelineChart(tl.buckets || []);
+            html += '</div>';
+
+            /* 2 — guardrail triggers */
+            html += '<div class="chart-card">';
+            html += `<div class="chart-title"><span>guardrails · 24 h</span><span class="chart-note">${gr.total_interactions || 0} interactions</span></div>`;
+            html += renderGuardrailBars(gr.counts || {});
+            html += '</div>';
+
+            /* 3 — SLA radar */
+            html += '<div class="chart-card">';
+            html += `<div class="chart-title"><span>sla radar</span><span class="chart-note">${radarData.tickets.length} open</span></div>`;
+            html += '<div id="radar-rows"></div>';
+            html += '</div>';
+
+            /* 4 — cost meter */
+            html += '<div class="chart-card">';
+            html += '<div class="chart-title"><span>llm spend · 4 h</span><span class="chart-note">live</span></div>';
+            html += '<div id="cost-card"></div>';
+            html += '</div>';
+
+            chartsContent.innerHTML = html;
+            renderRadarTimes();
+            renderCostCard();
+        }
+
+        function renderTimelineChart(buckets) {
+            if (!buckets.length) return '<div class="dash-empty">no activity yet</div>';
+            const w = 300, h = 74, pad = 4, padB = 14;
+            const maxV = Math.max(1, ...buckets.map(b => Math.max(b.events, b.incidents)));
+            const x = i => pad + (i / Math.max(1, buckets.length - 1)) * (w - pad * 2);
+            const y = v => pad + (1 - v / maxV) * (h - pad - padB);
+
+            const evPts = buckets.map((b, i) => `${x(i).toFixed(1)},${y(b.events).toFixed(1)}`).join(' ');
+            const incPts = buckets.map((b, i) => `${x(i).toFixed(1)},${y(b.incidents).toFixed(1)}`).join(' ');
+            const incArea = `${pad},${(h - padB).toFixed(1)} ${incPts} ${(w - pad).toFixed(1)},${(h - padB).toFixed(1)}`;
+
+            const fmt = t => {
+                const dt = new Date(t * 1000);
+                return dt.getHours().toString().padStart(2, '0') + ':' + dt.getMinutes().toString().padStart(2, '0');
+            };
+            return `<svg class="chart-svg" viewBox="0 0 ${w} ${h}">
+                <line x1="${pad}" y1="${h - padB}" x2="${w - pad}" y2="${h - padB}" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+                <polygon points="${incArea}" fill="rgba(224,96,80,0.16)"/>
+                <polyline points="${evPts}" fill="none" stroke="rgba(122,158,201,0.75)" stroke-width="1.4" stroke-linejoin="round"/>
+                <polyline points="${incPts}" fill="none" stroke="rgba(224,96,80,0.85)" stroke-width="1.4" stroke-linejoin="round"/>
+                <text x="${pad}" y="${h - 2}" class="chart-axis-label">${fmt(buckets[0].t)}</text>
+                <text x="${w - pad}" y="${h - 2}" text-anchor="end" class="chart-axis-label">${fmt(buckets[buckets.length - 1].t)}</text>
+                <text x="${w - pad}" y="${pad + 7}" text-anchor="end" class="chart-axis-label">max ${maxV}</text>
+            </svg>`;
+        }
+
+        const GUARDRAIL_LABELS = {
+            injection: 'injection attempts', input_blocked: 'input blocked',
+            pii_redacted: 'pii redacted (in)', pii_output: 'pii leak (out)',
+            hallucinated_sla: 'sla hallucination', judge_flag: 'judge flagged',
+            judge_block: 'judge blocked', authorized_disclosure: 'authorized disclosure',
+            bypassed_realtime: 'voice · no guardrails',
+        };
+        const GUARDRAIL_COLORS = {
+            injection: '#e06050', input_blocked: '#e06050', pii_redacted: '#e8a040',
+            pii_output: '#e06050', hallucinated_sla: '#e8a040', judge_flag: '#d4c55a',
+            judge_block: '#e06050', authorized_disclosure: '#5a9a5e', bypassed_realtime: '#8a6ab8',
+        };
+
+        function renderGuardrailBars(counts) {
+            const entries = Object.entries(counts).filter(([, v]) => v > 0);
+            if (!entries.length) return '<div class="dash-empty">no triggers — quiet shift</div>';
+            const maxV = Math.max(...entries.map(([, v]) => v));
+            let html = '';
+            for (const [key, v] of entries) {
+                const pct = (v / maxV * 100).toFixed(0);
+                const color = GUARDRAIL_COLORS[key] || 'rgba(255,255,255,0.4)';
+                html += `<div class="dash-row">
+                    <span class="dash-label">${GUARDRAIL_LABELS[key] || esc(key)}</span>
+                    <div class="dash-bar-bg"><div class="dash-bar-fill" style="width:${pct}%;background:${color}"></div></div>
+                    <span class="dash-count">${v}</span>
+                </div>`;
+            }
+            return html;
+        }
+
+        function fmtRemaining(secs) {
+            const neg = secs < 0;
+            let s = Math.abs(secs);
+            let out;
+            if (s >= 86400) out = Math.floor(s / 86400) + 'd ' + Math.floor((s % 86400) / 3600) + 'h';
+            else if (s >= 3600) out = Math.floor(s / 3600) + 'h ' + Math.floor((s % 3600) / 60) + 'm';
+            else out = Math.floor(s / 60) + 'm ' + Math.floor(s % 60) + 's';
+            return (neg ? '−' : '') + out;
+        }
+
+        function renderRadarTimes() {
+            const rows = document.getElementById('radar-rows');
+            if (!rows) return;
+            const elapsed = (Date.now() - radarData.fetchedAt) / 1000;
+            const tickets = radarData.tickets.slice(0, 8);
+            if (!tickets.length) { rows.innerHTML = '<div class="dash-empty">no open tickets</div>'; return; }
+            let html = '';
+            for (const t of tickets) {
+                const remaining = t.seconds_remaining - elapsed;
+                const breached = remaining < 0;
+                /* bar width: fraction of a 24h horizon still left */
+                const frac = Math.max(0, Math.min(1, remaining / 86400));
+                const cls = breached ? 'radar-breached' : frac < 0.25 ? 'radar-warning' : 'radar-ok';
+                html += `<div class="radar-row" title="${esc(t.summary || '')} (${esc(t.tier)} / ${esc(t.priority)})">
+                    <span class="radar-id">${esc(t.ticket_id)}</span>
+                    <div class="radar-bar-bg"><div class="radar-bar ${cls}" style="width:${breached ? 100 : Math.max(3, frac * 100)}%"></div></div>
+                    <span class="radar-time${breached ? ' breached' : ''}">${fmtRemaining(remaining)}</span>
+                </div>`;
+            }
+            rows.innerHTML = html;
+        }
+
+        function renderCostCard() {
+            const card = document.getElementById('cost-card');
+            if (!card || !costData) return;
+            const total = costData.total_usd || 0;
+            const roles = costData.by_role || {};
+            let html = `<div class="cost-total">$${total.toFixed(4)}</div>`;
+            html += `<div class="cost-sub">${(costData.total_tokens || 0).toLocaleString()} tokens</div>`;
+            for (const [role, e] of Object.entries(roles)) {
+                html += `<div class="cost-row">
+                    <span>${esc(role)} · ${esc((e.models && e.models[e.models.length-1] || '').split('/').pop())}</span>
+                    <span class="cost-val">${e.calls} calls · $${e.cost_usd.toFixed(4)}</span>
+                </div>`;
+            }
+            card.innerHTML = html;
+        }
+
+        function onChartUpdate(d) {
+            if (d.kind !== 'cost' || !costData) return;
+            costData.total_usd = (costData.total_usd || 0) + (d.cost_usd || 0);
+            costData.total_tokens = (costData.total_tokens || 0) + (d.tokens || 0);
+            const e = costData.by_role[d.role] || (costData.by_role[d.role] = { tokens: 0, cost_usd: 0, calls: 0, models: [d.model] });
+            e.tokens += d.tokens || 0;
+            e.cost_usd += d.cost_usd || 0;
+            e.calls += 1;
+            if (chartsOpen) renderCostCard();
+        }
+
+        /* ── Reports panel ── */
+        const reportPanel = document.getElementById('report-panel');
+        const reportToggle = document.getElementById('report-toggle');
+        const reportContent = document.getElementById('report-content');
+        let reportsOpen = false;
+
+        function toggleReports() {
+            reportsOpen = !reportsOpen;
+            reportPanel.classList.toggle('open', reportsOpen);
+            reportToggle.classList.toggle('active', reportsOpen);
+        }
+
+        function setReportBusy(which) {
+            document.getElementById('report-btn-handover').classList.toggle('active', which === 'handover');
+            document.getElementById('report-btn-clusters').classList.toggle('active', which === 'clusters');
+            reportContent.innerHTML = '<div class="status-shimmer" style="text-align:center;padding:16px 0">'
+                + (which === 'handover' ? 'writing the handover briefing' : 'clustering open tickets') + '</div>';
+        }
+
+        async function loadHandover() {
+            setReportBusy('handover');
+            try {
+                const res = await fetch('/api/reports/handover', { method: 'POST' });
+                const d = await res.json();
+                if (d.error) throw new Error(d.error);
+                reportContent.innerHTML = renderMd(d.markdown || '')
+                    + `<div class="report-meta">${esc(d.model || '')} · ${esc((d.generated_at || '').substring(11, 19))} utc</div>`;
+            } catch (e) {
+                reportContent.innerHTML = '<div class="dash-empty">could not generate handover</div>';
+            }
+        }
+
+        async function loadClusters() {
+            setReportBusy('clusters');
+            try {
+                const res = await fetch('/api/reports/clusters', { method: 'POST' });
+                const d = await res.json();
+                if (d.error) throw new Error(d.error);
+                const clusters = d.clusters || [];
+                if (!clusters.length) {
+                    reportContent.innerHTML = '<div class="dash-empty">no related-ticket clusters found</div>';
+                    return;
+                }
+                let html = '';
+                for (const c of clusters) {
+                    html += `<div class="cluster-card">
+                        <div class="cluster-label">${esc(c.label || 'cluster')}</div>
+                        <div class="cluster-cause">${esc(c.root_cause || '')}</div>
+                        <div>${(c.tickets || []).map(t => `<span class="cluster-chip">${esc(t)}</span>`).join('')}</div>
+                    </div>`;
+                }
+                if (d.singletons && d.singletons.length) {
+                    html += `<div class="cluster-cause" style="margin-top:8px">unclustered: ${d.singletons.map(esc).join(', ')}</div>`;
+                }
+                html += `<div class="report-meta">${esc(d.model || '')}</div>`;
+                reportContent.innerHTML = html;
+            } catch (e) {
+                reportContent.innerHTML = '<div class="dash-empty">could not cluster tickets</div>';
+            }
+        }
+
+        /* ── Ask-the-audit meta-chat ── */
+        const AUDIT_HINTS = [
+            'How many injection attempts today?',
+            'What did the judge block this week, and why?',
+            'Any PII incidents in the last 24 hours?',
+            'Summarize guardrail activity for today',
+            'Which interactions bypassed the guardrails?',
+        ];
+
+        function openAuditThread(e) {
+            const x = window.innerWidth / 2 - THREAD_WIDTH / 2 + (Math.random() * 60 - 30);
+            const y = window.innerHeight * 0.25;
+            const threadId = spawnThread(x + window.scrollX, y + window.scrollY, {
+                kind: 'audit',
+                label: 'ask the audit log',
+                sessionId: 'audit-' + Date.now(),
+            });
+            addMessage(threadId, 'assistant',
+                "I answer questions about this system's own audit trail — guardrail triggers, blocked requests, judge verdicts, tool usage. What would you like to know?");
+        }
+
+        async function sendAuditMessage(threadId) {
+            const thread = threads[threadId];
+            if (!thread) return;
+            const inp = document.getElementById(`input-${threadId}`);
+            const text = inp.value.trim();
+            if (!text || thread.isProcessing) return;
+
+            thread.isProcessing = true;
+            inp.value = '';
+            inp.disabled = true;
+            addMessage(threadId, 'user', text);
+            showStatus(threadId);
+
+            try {
+                const res = await fetch('/api/audit-chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: text, session_id: thread.conversationId }),
+                });
+                const d = await res.json();
+                removeStatus(threadId);
+                addMessage(threadId, 'assistant', d.response || d.error || 'No answer.');
+            } catch (err) {
+                removeStatus(threadId);
+                addMessage(threadId, 'assistant', 'Could not reach the audit service.');
+            }
+            thread.isProcessing = false;
+            inp.disabled = false;
+            inp.focus();
+        }
+
+        /* ── Voice mode (OpenAI Realtime over WebRTC) ── */
+        const voiceHint = document.getElementById('voice-hint');
+        const voiceTools = document.getElementById('voice-tools');
+        const voiceAudio = document.getElementById('voice-audio');
+        let voicePC = null;
+        let voiceDC = null;
+        let voiceMicStream = null;
+        let voiceLive = false;
+        let voiceSessionId = null;
+        let ampRAF = null;
+
+        function setVoiceHint(text, sticky) {
+            voiceHint.textContent = text || '';
+            voiceHint.classList.toggle('visible', !!text);
+            if (text && !sticky) setTimeout(() => voiceHint.classList.remove('visible'), 4000);
+        }
+
+        async function toggleVoice() {
+            if (!voiceAvailable) {
+                setVoiceHint('voice needs an openai key in .env');
+                return;
+            }
+            if (voiceLive) { stopVoice(); return; }
+            await startVoice();
+        }
+
+        async function startVoice() {
+            voiceOrb.classList.add('connecting');
+            setVoiceHint('connecting…', true);
+            voiceSessionId = 'voice-' + Date.now();
+            try {
+                /* 1 — ephemeral client secret from our backend */
+                const sess = await fetch('/api/voice/session', { method: 'POST' }).then(r => {
+                    if (!r.ok) throw new Error('session mint failed: ' + r.status);
+                    return r.json();
+                });
+                const ek = sess.value;
+                const model = sess.model || 'gpt-realtime-2.1-mini';
+
+                /* 2 — WebRTC peer connection with mic + data channel */
+                voicePC = new RTCPeerConnection();
+                voiceMicStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                voiceMicStream.getTracks().forEach(t => voicePC.addTrack(t, voiceMicStream));
+                voicePC.ontrack = (e) => {
+                    voiceAudio.srcObject = e.streams[0];
+                    startAmpMeter(e.streams[0]);
+                };
+                voiceDC = voicePC.createDataChannel('oai-events');
+                voiceDC.onmessage = (e) => {
+                    try { handleRealtimeEvent(JSON.parse(e.data)); } catch (err) { /* skip */ }
+                };
+
+                /* 3 — SDP exchange straight with OpenAI */
+                const offer = await voicePC.createOffer();
+                await voicePC.setLocalDescription(offer);
+                const sdpRes = await fetch(
+                    'https://api.openai.com/v1/realtime/calls?model=' + encodeURIComponent(model), {
+                        method: 'POST',
+                        headers: { 'Authorization': 'Bearer ' + ek, 'Content-Type': 'application/sdp' },
+                        body: offer.sdp,
+                    });
+                if (!sdpRes.ok) throw new Error('sdp exchange failed: ' + sdpRes.status);
+                await voicePC.setRemoteDescription({ type: 'answer', sdp: await sdpRes.text() });
+
+                voiceLive = true;
+                voiceOrb.classList.remove('connecting');
+                voiceOrb.classList.add('live');
+                setVoiceHint('listening · guardrails bypassed on this channel', true);
+            } catch (err) {
+                stopVoice();
+                setVoiceHint('voice unavailable — ' + (err.message || 'connection failed'));
+            }
+        }
+
+        function stopVoice() {
+            voiceLive = false;
+            if (ampRAF) cancelAnimationFrame(ampRAF);
+            voiceOrb.style.setProperty('--amp', 0);
+            if (voiceDC) { try { voiceDC.close(); } catch (e) {} voiceDC = null; }
+            if (voicePC) { try { voicePC.close(); } catch (e) {} voicePC = null; }
+            if (voiceMicStream) {
+                voiceMicStream.getTracks().forEach(t => t.stop());
+                voiceMicStream = null;
+            }
+            voiceAudio.srcObject = null;
+            voiceOrb.classList.remove('connecting', 'live', 'speaking');
+            voiceTools.innerHTML = '';
+            voiceHint.classList.remove('visible');
+        }
+
+        function startAmpMeter(stream) {
+            try {
+                const ctx = getAudioCtx();
+                const src = ctx.createMediaStreamSource(stream);
+                const analyser = ctx.createAnalyser();
+                analyser.fftSize = 256;
+                src.connect(analyser);
+                const buf = new Uint8Array(analyser.frequencyBinCount);
+                (function tick() {
+                    if (!voiceLive) return;
+                    analyser.getByteFrequencyData(buf);
+                    let sum = 0;
+                    for (let i = 0; i < buf.length; i++) sum += buf[i];
+                    const amp = Math.min(1, (sum / buf.length) / 90);
+                    voiceOrb.style.setProperty('--amp', amp.toFixed(2));
+                    voiceOrb.classList.toggle('speaking', amp > 0.12);
+                    ampRAF = requestAnimationFrame(tick);
+                })();
+            } catch (e) { /* meter is cosmetic */ }
+        }
+
+        function showToolChip(name) {
+            const chip = document.createElement('div');
+            chip.className = 'voice-tool-chip';
+            chip.textContent = '⚙ ' + name;
+            voiceTools.appendChild(chip);
+            setTimeout(() => chip.remove(), 6000);
+        }
+
+        async function handleRealtimeEvent(ev) {
+            switch (ev.type) {
+                case 'input_audio_buffer.speech_started':
+                    voiceOrb.classList.remove('speaking');
+                    break;
+                case 'conversation.item.input_audio_transcription.completed':
+                    if (ev.transcript) logVoiceTranscript('user', ev.transcript);
+                    break;
+                case 'response.output_audio_transcript.done':
+                case 'response.audio_transcript.done':
+                    if (ev.transcript) logVoiceTranscript('assistant', ev.transcript);
+                    break;
+                case 'response.done': {
+                    const items = (ev.response && ev.response.output) || [];
+                    for (const item of items) {
+                        if (item.type === 'function_call') await runVoiceTool(item);
+                    }
+                    break;
+                }
+            }
+        }
+
+        async function runVoiceTool(item) {
+            showToolChip(item.name);
+            let output = '{"error": "tool execution failed"}';
+            try {
+                const res = await fetch('/api/voice/tool', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name: item.name,
+                        arguments: item.arguments,
+                        call_id: item.call_id,
+                        session_id: voiceSessionId,
+                    }),
+                });
+                const d = await res.json();
+                if (d.output) output = d.output;
+            } catch (e) { /* keep error output */ }
+            if (voiceDC && voiceDC.readyState === 'open') {
+                voiceDC.send(JSON.stringify({
+                    type: 'conversation.item.create',
+                    item: { type: 'function_call_output', call_id: item.call_id, output },
+                }));
+                voiceDC.send(JSON.stringify({ type: 'response.create' }));
+            }
+        }
+
+        function logVoiceTranscript(role, transcript) {
+            fetch('/api/voice/log', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ role, transcript, session_id: voiceSessionId }),
+            }).catch(() => {});
+        }
     </script>
 </body>
 </html>

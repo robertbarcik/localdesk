@@ -5,10 +5,15 @@ cd "$(dirname "$0")"
 
 echo "=== LocalDesk Setup ==="
 
-# Create venv if not exists
+# Create venv if not exists (Python 3.10+ required for the MCP server/CLI)
 if [ ! -d "venv" ]; then
     echo "Creating Python virtual environment..."
-    python3 -m venv venv
+    PY=python3
+    for candidate in python3.13 python3.12 python3.11 python3.10; do
+        if command -v "$candidate" &>/dev/null; then PY="$candidate"; break; fi
+    done
+    echo "Using $($PY --version)"
+    "$PY" -m venv venv
 fi
 
 echo "Activating venv and installing dependencies..."
