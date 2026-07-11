@@ -30,8 +30,45 @@ CLIENT_SECRETS_URL = "https://api.openai.com/v1/realtime/client_secrets"
 VOICE_MODEL = ROLES.get("voice", {}).get("model", "gpt-realtime-2.1-mini")
 
 
+# Screen-control tools executed by the BROWSER, not this backend — they let
+# the caller say "pull up the dashboard" and watch the UI respond.
+UI_TOOLS = [
+    {
+        "type": "function",
+        "name": "show_dashboard",
+        "description": "Open the incident dashboard panel on the user's screen (counts by status/priority, recent tickets).",
+        "parameters": {"type": "object", "properties": {}, "required": []},
+    },
+    {
+        "type": "function",
+        "name": "show_monitoring",
+        "description": "Open the live monitoring charts on the user's screen: activity over time, guardrail triggers, SLA-breach radar with countdowns, and LLM cost meter.",
+        "parameters": {"type": "object", "properties": {}, "required": []},
+    },
+    {
+        "type": "function",
+        "name": "show_report",
+        "description": "Generate and display a report on the user's screen. Use kind 'handover' for a shift-handover briefing of the incident queue, or 'clusters' to group related open tickets by probable root cause.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "kind": {"type": "string", "enum": ["handover", "clusters"]},
+            },
+            "required": ["kind"],
+        },
+    },
+    {
+        "type": "function",
+        "name": "hide_panels",
+        "description": "Close all open panels on the user's screen.",
+        "parameters": {"type": "object", "properties": {}, "required": []},
+    },
+]
+
+
 def realtime_tools() -> list:
-    """Flatten the chat-completions tool schemas into Realtime format."""
+    """Chat-completions tool schemas flattened into Realtime format, plus the
+    browser-executed screen-control tools."""
     return [
         {
             "type": "function",
@@ -40,7 +77,7 @@ def realtime_tools() -> list:
             "parameters": t["function"]["parameters"],
         }
         for t in TOOLS
-    ]
+    ] + UI_TOOLS
 
 
 @router.post("/api/voice/session")

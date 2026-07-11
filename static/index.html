@@ -1269,6 +1269,49 @@
             animation: msgIn 0.25s ease;
             box-shadow: 0 2px 10px rgba(110,200,130,0.3);
         }
+
+        /* ── Voice conversation thread ── */
+        .thread.voice {
+            box-shadow: 0 0 0 1px rgba(120, 190, 200, 0.35), 0 0 28px rgba(120, 190, 200, 0.25), var(--shadow-active);
+        }
+        .thread-tag-voice { background: rgba(120, 190, 200, 0.16); color: #4d8a94; }
+        body.dark .thread-tag-voice { color: #8fd0da; }
+        .thread.voice .thread-input, .thread.voice .thread-hints { display: none; }
+        .thread.voice .thread-messages { padding-bottom: 14px; }
+        .thread.voice.ended {
+            box-shadow: var(--shadow);
+            opacity: 0.75;
+        }
+        .voice-transcribing {
+            display: inline-block;
+            letter-spacing: 3px;
+            animation: shimmer 1.6s ease-in-out infinite;
+            background: linear-gradient(90deg, #aaa 0%, #666 45%, #aaa 55%, #aaa 100%);
+            background-size: 300% 100%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        /* ── Voice glow — the screen breathes with the conversation ── */
+        #voice-glow {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 0;
+            opacity: 0;
+            background: radial-gradient(ellipse 90% 55% at 50% 100%,
+                rgba(110, 190, 160, 0.28) 0%,
+                rgba(110, 170, 200, 0.14) 40%,
+                transparent 70%);
+            transition: opacity 0.18s ease-out;
+        }
+        body.dark #voice-glow {
+            background: radial-gradient(ellipse 90% 55% at 50% 100%,
+                rgba(110, 210, 170, 0.22) 0%,
+                rgba(110, 170, 220, 0.12) 40%,
+                transparent 70%);
+        }
     </style>
 </head>
 <body>
@@ -1304,6 +1347,7 @@
         </div>
         <div id="report-content"><div class="dash-empty">choose a report</div></div>
     </div>
+    <div id="voice-glow"></div>
     <div id="telemetry-layer"></div>
     <div id="ticker"></div>
     <button id="voice-orb" class="disabled" onclick="event.stopPropagation(); toggleVoice()" title="Voice mode"></button>
@@ -1437,7 +1481,9 @@
                 ? '<div class="thread-tag thread-tag-sentinel">sentinel</div>'
                 : opts.kind === 'audit'
                     ? '<div class="thread-tag thread-tag-audit">audit</div>'
-                    : '';
+                    : opts.kind === 'voice'
+                        ? '<div class="thread-tag thread-tag-voice">voice</div>'
+                        : '';
 
             el.innerHTML = `
                 ${tag}
@@ -1464,7 +1510,7 @@
             document.getElementById(`input-${id}`).focus();
             brand.style.opacity = '0.4';
             setupDrag(el, id);
-            if (opts.kind === 'sentinel') {
+            if (opts.kind === 'sentinel' || opts.kind === 'voice') {
                 removeHints(id);
             } else if (opts.kind === 'audit') {
                 startHintCycling(id, AUDIT_HINTS);
@@ -2757,12 +2803,19 @@
         const voiceHint = document.getElementById('voice-hint');
         const voiceTools = document.getElementById('voice-tools');
         const voiceAudio = document.getElementById('voice-audio');
+        const voiceGlow = document.getElementById('voice-glow');
         let voicePC = null;
         let voiceDC = null;
         let voiceMicStream = null;
         let voiceLive = false;
         let voiceSessionId = null;
         let ampRAF = null;
+        let voiceThreadId = null;      // the on-screen conversation thread
+        let voiceBubble = null;        // assistant bubble currently streaming
+        let voiceBubbleText = '';
+        let voicePendingUser = null;   // "…" bubble while whisper transcribes
+        let micAnalyser = null;
+        let remoteAnalyser = null;
 
         function setVoiceHint(text, sticky) {
             voiceHint.textContent = text || '';
@@ -2821,16 +2874,81 @@
                 voiceOrb.classList.remove('connecting');
                 voiceOrb.classList.add('live');
                 setVoiceHint('listening · guardrails bypassed on this channel', true);
+                startMicMeter(voiceMicStream);
+                spawnVoiceThread();
             } catch (err) {
                 stopVoice();
                 setVoiceHint('voice unavailable — ' + (err.message || 'connection failed'));
             }
         }
 
+        function spawnVoiceThread() {
+            const x = window.innerWidth / 2 - THREAD_WIDTH / 2;
+            const y = Math.max(60, window.innerHeight - 520);
+            voiceThreadId = spawnThread(x + window.scrollX, y + window.scrollY, {
+                kind: 'voice',
+                label: 'voice session · live',
+                sessionId: voiceSessionId,
+            });
+        }
+
+        function voiceMsgsEl() {
+            return voiceThreadId ? document.getElementById(`msgs-${voiceThreadId}`) : null;
+        }
+
+        /* User bubble appears as "…" the moment speech starts, fills in when
+           whisper finishes — keeps the visual order natural. */
+        function voiceUserPending() {
+            const msgs = voiceMsgsEl();
+            if (!msgs || voicePendingUser) return;
+            const div = document.createElement('div');
+            div.className = 'msg msg-user';
+            div.innerHTML = '<div class="msg-bubble"><span class="voice-transcribing">· · ·</span></div>';
+            msgs.appendChild(div);
+            msgs.scrollTop = msgs.scrollHeight;
+            voicePendingUser = div;
+        }
+
+        function voiceUserFinal(transcript) {
+            const msgs = voiceMsgsEl();
+            if (!msgs) return;
+            if (voicePendingUser) {
+                voicePendingUser.querySelector('.msg-bubble').textContent = transcript;
+                voicePendingUser = null;
+            } else {
+                addMessage(voiceThreadId, 'user', transcript);
+            }
+            msgs.scrollTop = msgs.scrollHeight;
+        }
+
+        /* Assistant transcript streams into a bubble as the words are spoken */
+        function voiceAssistantDelta(delta) {
+            const msgs = voiceMsgsEl();
+            if (!msgs) return;
+            if (!voiceBubble) {
+                const div = document.createElement('div');
+                div.className = 'msg msg-assistant';
+                voiceBubble = document.createElement('div');
+                voiceBubble.className = 'msg-bubble';
+                div.appendChild(voiceBubble);
+                msgs.appendChild(div);
+                voiceBubbleText = '';
+            }
+            voiceBubbleText += delta;
+            voiceBubble.innerHTML = renderMd(voiceBubbleText);
+            msgs.scrollTop = msgs.scrollHeight;
+        }
+
+        function voiceAssistantDone() {
+            voiceBubble = null;
+            voiceBubbleText = '';
+        }
+
         function stopVoice() {
             voiceLive = false;
             if (ampRAF) cancelAnimationFrame(ampRAF);
             voiceOrb.style.setProperty('--amp', 0);
+            voiceGlow.style.opacity = 0;
             if (voiceDC) { try { voiceDC.close(); } catch (e) {} voiceDC = null; }
             if (voicePC) { try { voicePC.close(); } catch (e) {} voicePC = null; }
             if (voiceMicStream) {
@@ -2841,24 +2959,56 @@
             voiceOrb.classList.remove('connecting', 'live', 'speaking');
             voiceTools.innerHTML = '';
             voiceHint.classList.remove('visible');
+            micAnalyser = null;
+            remoteAnalyser = null;
+            voiceBubble = null;
+            voicePendingUser = null;
+            /* Keep the transcript on screen, visibly ended */
+            if (voiceThreadId) {
+                const el = document.getElementById(voiceThreadId);
+                if (el) el.classList.add('ended');
+                const labelEl = document.getElementById(`label-${voiceThreadId}`);
+                if (labelEl) labelEl.textContent = 'voice session · ended';
+                if (threads[voiceThreadId]) threads[voiceThreadId].label = 'voice session · ended';
+                voiceThreadId = null;
+            }
+        }
+
+        function makeAnalyser(stream) {
+            const ctx = getAudioCtx();
+            const src = ctx.createMediaStreamSource(stream);
+            const analyser = ctx.createAnalyser();
+            analyser.fftSize = 256;
+            src.connect(analyser);
+            return analyser;
+        }
+
+        function readAmp(analyser, buf) {
+            if (!analyser) return 0;
+            analyser.getByteFrequencyData(buf);
+            let sum = 0;
+            for (let i = 0; i < buf.length; i++) sum += buf[i];
+            return Math.min(1, (sum / buf.length) / 90);
+        }
+
+        function startMicMeter(stream) {
+            try { micAnalyser = makeAnalyser(stream); } catch (e) { /* cosmetic */ }
         }
 
         function startAmpMeter(stream) {
             try {
-                const ctx = getAudioCtx();
-                const src = ctx.createMediaStreamSource(stream);
-                const analyser = ctx.createAnalyser();
-                analyser.fftSize = 256;
-                src.connect(analyser);
-                const buf = new Uint8Array(analyser.frequencyBinCount);
+                remoteAnalyser = makeAnalyser(stream);
+                const buf = new Uint8Array(remoteAnalyser.frequencyBinCount);
+                const micBuf = new Uint8Array(128);
                 (function tick() {
                     if (!voiceLive) return;
-                    analyser.getByteFrequencyData(buf);
-                    let sum = 0;
-                    for (let i = 0; i < buf.length; i++) sum += buf[i];
-                    const amp = Math.min(1, (sum / buf.length) / 90);
+                    const remoteAmp = readAmp(remoteAnalyser, buf);
+                    const micAmp = readAmp(micAnalyser, micBuf);
+                    const amp = Math.max(remoteAmp, micAmp * 0.8);
                     voiceOrb.style.setProperty('--amp', amp.toFixed(2));
-                    voiceOrb.classList.toggle('speaking', amp > 0.12);
+                    voiceOrb.classList.toggle('speaking', remoteAmp > 0.12);
+                    /* the whole screen breathes with whoever is talking */
+                    voiceGlow.style.opacity = (amp * 0.9).toFixed(2);
                     ampRAF = requestAnimationFrame(tick);
                 })();
             } catch (e) { /* meter is cosmetic */ }
@@ -2876,47 +3026,111 @@
             switch (ev.type) {
                 case 'input_audio_buffer.speech_started':
                     voiceOrb.classList.remove('speaking');
+                    voiceUserPending();
                     break;
                 case 'conversation.item.input_audio_transcription.completed':
-                    if (ev.transcript) logVoiceTranscript('user', ev.transcript);
+                    if (ev.transcript) {
+                        voiceUserFinal(ev.transcript);
+                        logVoiceTranscript('user', ev.transcript);
+                    }
+                    break;
+                case 'response.output_audio_transcript.delta':
+                case 'response.audio_transcript.delta':
+                    if (ev.delta) voiceAssistantDelta(ev.delta);
                     break;
                 case 'response.output_audio_transcript.done':
                 case 'response.audio_transcript.done':
+                    voiceAssistantDone();
                     if (ev.transcript) logVoiceTranscript('assistant', ev.transcript);
                     break;
                 case 'response.done': {
-                    const items = (ev.response && ev.response.output) || [];
-                    for (const item of items) {
-                        if (item.type === 'function_call') await runVoiceTool(item);
+                    const calls = ((ev.response && ev.response.output) || [])
+                        .filter(item => item.type === 'function_call');
+                    if (calls.length) {
+                        /* All outputs first, then ONE response.create — otherwise the
+                           model answers after the first tool while others are pending */
+                        for (const item of calls) await runVoiceTool(item);
+                        if (voiceDC && voiceDC.readyState === 'open') {
+                            voiceDC.send(JSON.stringify({ type: 'response.create' }));
+                        }
                     }
                     break;
                 }
             }
         }
 
+        /* Screen-control tools the voice agent runs directly in the browser */
+        const VOICE_UI_TOOLS = {
+            show_dashboard: () => {
+                if (!dashOpen) toggleDashboard();
+                return 'The incident dashboard is now open on screen.';
+            },
+            show_monitoring: () => {
+                if (!chartsOpen) toggleCharts();
+                return 'Live monitoring charts are now open on screen: activity, guardrails, SLA radar, and cost.';
+            },
+            show_report: (args) => {
+                if (!reportsOpen) toggleReports();
+                if (args && args.kind === 'clusters') { loadClusters(); }
+                else { loadHandover(); }
+                return 'The report is being generated and will appear on screen in a few seconds.';
+            },
+            hide_panels: () => {
+                if (dashOpen) toggleDashboard();
+                if (chartsOpen) toggleCharts();
+                if (reportsOpen) toggleReports();
+                return 'All panels are closed.';
+            },
+        };
+
         async function runVoiceTool(item) {
             showToolChip(item.name);
             let output = '{"error": "tool execution failed"}';
-            try {
-                const res = await fetch('/api/voice/tool', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        name: item.name,
-                        arguments: item.arguments,
-                        call_id: item.call_id,
-                        session_id: voiceSessionId,
-                    }),
-                });
-                const d = await res.json();
-                if (d.output) output = d.output;
-            } catch (e) { /* keep error output */ }
+
+            if (VOICE_UI_TOOLS[item.name]) {
+                /* Screen-control tool — runs right here in the browser */
+                try {
+                    let args = {};
+                    try { args = JSON.parse(item.arguments || '{}'); } catch (e) {}
+                    output = JSON.stringify({ status: VOICE_UI_TOOLS[item.name](args) });
+                } catch (e) {
+                    output = JSON.stringify({ error: String(e) });
+                }
+            } else {
+                /* Desk tool — bridged to the backend handlers */
+                try {
+                    const res = await fetch('/api/voice/tool', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            name: item.name,
+                            arguments: item.arguments,
+                            call_id: item.call_id,
+                            session_id: voiceSessionId,
+                        }),
+                    });
+                    const d = await res.json();
+                    if (d.output) output = d.output;
+                } catch (e) { /* keep error output */ }
+
+                /* Ticket created by voice → show the incident card in the thread */
+                if (item.name === 'create_incident') {
+                    try {
+                        const args = JSON.parse(item.arguments || '{}');
+                        const msgs = voiceMsgsEl();
+                        if (msgs && !JSON.parse(output).error) {
+                            msgs.insertAdjacentHTML('beforeend', incidentCard(args));
+                            msgs.scrollTop = msgs.scrollHeight;
+                        }
+                    } catch (e) { /* card is cosmetic */ }
+                }
+            }
+
             if (voiceDC && voiceDC.readyState === 'open') {
                 voiceDC.send(JSON.stringify({
                     type: 'conversation.item.create',
                     item: { type: 'function_call_output', call_id: item.call_id, output },
                 }));
-                voiceDC.send(JSON.stringify({ type: 'response.create' }));
             }
         }
 

@@ -66,7 +66,7 @@ Click the **mu** watermark after any interaction to inspect the security audit f
 - **∿ Live monitoring** — activity chart, guardrail-trigger chart, **SLA-breach radar** with live countdowns, and a live LLM cost meter (per role, per model).
 - **✦ Reports** — one-click AI **shift-handover briefing** and **incident clustering** (embeddings + LLM labels: "these 3 tickets are probably one root cause").
 - **Ω Ask the audit** — a meta-chat over the system's own audit log: "How many injection attempts today? What did the judge block?"
-- **Voice orb** (bottom-center) — realtime speech-to-speech via OpenAI (WebRTC). You can *hear* the model pause to call `check_sla` or `create_incident` mid-sentence. Voice bypasses the text guardrail pipeline — deliberately surfaced in the audit log and UI as a discussion point.
+- **Voice orb** (bottom-center) — realtime speech-to-speech via OpenAI (WebRTC). A live **voice thread** materializes with the conversation: your words appear via transcription, the assistant's reply streams word-by-word as it speaks, tickets render as incident cards, and the whole screen breathes with the audio. The agent can also **drive the screen**: say *"pull up the monitoring"* or *"show me the dashboard"* and the panel opens mid-sentence (`show_dashboard`, `show_monitoring`, `show_report`, `hide_panels`). Voice bypasses the text guardrail pipeline — deliberately surfaced in the audit log and UI as a discussion point.
 
 ## Demo Scenarios
 

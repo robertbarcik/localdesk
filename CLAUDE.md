@@ -49,7 +49,13 @@ Ops room (all pushed over /ws):
   record_llm_usage (every LLM call, all roles) → request_metrics + chart_update push
 
 Voice: browser ↔ OpenAI Realtime via WebRTC (ephemeral secret from /api/voice/session);
-  tool calls bridged through /api/voice/tool into the same TOOL_HANDLERS;
+  desk tool calls bridged through /api/voice/tool into the same TOOL_HANDLERS;
+  UI tools (show_dashboard/show_monitoring/show_report/hide_panels, defined in
+  app/voice.py UI_TOOLS) execute in the BROWSER so the caller can drive the screen;
+  a live voice thread streams both transcripts (assistant word-by-word via
+  response.output_audio_transcript.delta) and renders incident cards; #voice-glow
+  breathes with audio amplitude. With multiple tool calls in one turn, send ALL
+  function_call_outputs before ONE response.create (handled in response.done).
   BYPASSES the 3-layer text pipeline — audit-logged as "guardrails_bypassed" (deliberate
   teaching point, shown in the guardrail chart as "voice · no guardrails").
 ```
