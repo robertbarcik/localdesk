@@ -96,6 +96,57 @@ TOOLS = [
     {
         "type": "function",
         "function": {
+            "name": "list_incidents",
+            "description": "List incident tickets in the system (newest first). Use when the user asks what is open, what tickets exist, the current queue, or recent incidents.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "status": {
+                        "type": "string",
+                        "enum": ["open", "escalated", "resolved", "all"],
+                        "description": "Which tickets to list (default open).",
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "Maximum number of tickets to return (default 10, max 25).",
+                    },
+                },
+                "required": [],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_incident",
+            "description": "Get the details and current status of one incident ticket by its id (e.g. INC-00003).",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "ticket_id": {"type": "string", "description": "The ticket id, e.g. INC-00003."},
+                },
+                "required": ["ticket_id"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "audit_report",
+            "description": "Read this assistant's own security audit log: counts of guardrail triggers (injection attempts, PII redactions, unsourced SLA numbers, judge flags/blocks, voice channel) and the most recent flagged interactions. Use when asked what the guardrails blocked or flagged, how many attacks there were, or what the security layers did.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "hours": {"type": "integer", "description": "Lookback window in hours (default 24)."},
+                    "limit": {"type": "integer", "description": "How many recent flagged interactions to include (default 5)."},
+                },
+                "required": [],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "search_kb",
             "description": "Search the knowledge base for relevant articles and documentation. Use this to find answers to IT questions, troubleshooting steps, policies, and procedures.",
             "parameters": {

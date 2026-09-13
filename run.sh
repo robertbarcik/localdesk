@@ -18,14 +18,22 @@ if ! curl -s http://localhost:11434/api/tags >/dev/null 2>&1; then
     echo ""
 fi
 
-# Kill any existing instance on port 7860
-existing=$(lsof -ti :7860 2>/dev/null || true)
+# Kill any existing instance on port 7860 — only the LISTENING server, never
+# the clients connected to it (a plain `lsof -ti :7860` also lists the browser).
+existing=$(lsof -ti tcp:7860 -sTCP:LISTEN 2>/dev/null || true)
 if [ -n "$existing" ]; then
     echo "Stopping existing instance (pid $existing)..."
-    kill "$existing" 2>/dev/null || true
-    sleep 1
+    kill $existing 2>/dev/null || true
+    for _ in $(seq 1 25); do
+        if [ -z "$(lsof -ti tcp:7860 -sTCP:LISTEN 2>/dev/null || true)" ]; then break; fi
+        sleep 0.2
+    done
+    if [ -n "$(lsof -ti tcp:7860 -sTCP:LISTEN 2>/dev/null || true)" ]; then
+        echo "Port 7860 still busy — refusing to start a second instance." >&2
+        exit 1
+    fi
 fi
 
 echo "Starting mu on http://localhost:7860"
 echo ""
-python -m app.main
+exec python -m app.main

@@ -15,11 +15,14 @@ router = APIRouter()
 
 MODEL_COSTS = {  # USD per 1M tokens (input, output) — update at demo time
     "qwen3:1.7b":            (0.0,  0.0),
+    "qwen3.5:4b":            (0.0,  0.0),
     "qwen/qwen3-30b-a3b":    (0.12, 0.50),
     "gpt-5.4-nano":          (0.20, 1.25),
     "gpt-5.4-mini":          (0.75, 4.50),
     "gpt-realtime-2.1-mini": (0.60, 2.40),  # text-token proxy; voice cost shown as approx
 }
+# gpt-live-1 is billed by duration, not tokens: $0.05 per minute, per second.
+LIVE_VOICE_USD_PER_MIN = 0.05
 
 
 def record_llm_usage(
@@ -29,13 +32,18 @@ def record_llm_usage(
     completion_tokens: int,
     duration_s: float,
     session_id: str = "",
+    cost_override: float | None = None,
 ) -> float:
     """Insert one request_metrics row and push a live cost update.
 
     Called from worker threads (sync pipeline) — uses broadcast_threadsafe.
+    cost_override: for duration-billed models (gpt-live-1) the caller computes
+    the cost itself instead of the per-token table.
     """
     inp, out = MODEL_COSTS.get(model, (0.0, 0.0))
     cost = prompt_tokens / 1e6 * inp + completion_tokens / 1e6 * out
+    if cost_override is not None:
+        cost = cost_override
     conn = get_conn()
     try:
         conn.execute(
@@ -115,8 +123,8 @@ def guardrail_stats(hours: int = 24):
     cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
     counts = {
         "injection": 0, "input_blocked": 0, "pii_redacted": 0, "pii_output": 0,
-        "hallucinated_sla": 0, "judge_flag": 0, "judge_block": 0,
-        "authorized_disclosure": 0, "bypassed_realtime": 0,
+        "hallucinated_sla": 0, "judge_flag": 0, "judge_block": 0, "judge_unavailable": 0,
+        "authorized_disclosure": 0, "bypassed_realtime": 0, "voice_live_guarded": 0,
     }
     total = 0
     try:
@@ -148,10 +156,14 @@ def guardrail_stats(hours: int = 24):
                         counts["judge_flag"] += 1
                     elif "judge_blocked" in trig:
                         counts["judge_block"] += 1
+                    elif "judge_unavailable" in trig:
+                        counts["judge_unavailable"] += 1
                     elif "note_authorized_disclosure" in trig:
                         counts["authorized_disclosure"] += 1
                     elif "guardrails_bypassed" in trig:
                         counts["bypassed_realtime"] += 1
+                    elif "channel_voice_live" in trig:
+                        counts["voice_live_guarded"] += 1
     except FileNotFoundError:
         pass
     return {"total_interactions": total, "counts": counts, "hours": hours}

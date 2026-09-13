@@ -88,7 +88,8 @@ def ingest():
 
     print("Storing in ChromaDB...")
     Path(VECTORSTORE_PATH).mkdir(parents=True, exist_ok=True)
-    client = chromadb.PersistentClient(path=VECTORSTORE_PATH)
+    from chromadb.config import Settings
+    client = chromadb.PersistentClient(path=VECTORSTORE_PATH, settings=Settings(anonymized_telemetry=False))
 
     # Delete existing collection if present
     try:

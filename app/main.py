@@ -27,13 +27,15 @@ from app.ops.sentinel import sentinel
 from app.ops.simulation import router as simulation_router
 from app.ops.simulation import simulation
 from app.tools.assets import lookup_asset
+from app.tools.audit_report import audit_report
 from app.tools.definitions import TOOLS
-from app.tools.incidents import create_incident, escalate_ticket
+from app.tools.incidents import create_incident, escalate_ticket, get_incident, list_incidents
 from app.tools.knowledge import search_kb
 from app.tools.sla import check_sla
 from app.reports.router import router as reports_router
 from app.tracing import tracer
 from app.voice import router as voice_router
+from app.voice_live import router as voice_live_router
 from app.ws_hub import hub
 
 logging.basicConfig(level=logging.INFO)
@@ -45,6 +47,9 @@ TOOL_HANDLERS = {
     "create_incident": lambda args: create_incident(**args),
     "lookup_asset": lambda args: lookup_asset(**args),
     "escalate_ticket": lambda args: escalate_ticket(**args),
+    "list_incidents": lambda args: list_incidents(**args),
+    "get_incident": lambda args: get_incident(**args),
+    "audit_report": lambda args: audit_report(**args),
     "search_kb": lambda args: search_kb(**args),
 }
 
@@ -75,6 +80,7 @@ app.include_router(sentinel_router)
 app.include_router(reports_router)
 app.include_router(audit_chat_router)
 app.include_router(voice_router)
+app.include_router(voice_live_router)
 
 
 @app.websocket("/ws")
@@ -98,18 +104,63 @@ async def index():
     return HTMLResponse(index_path.read_text())
 
 
-def _run_chat_pipeline(user_message: str, session_id: str) -> dict:
-    """Core pipeline: pre-process -> LLM+tools -> post-process. Returns result dict."""
+def _tool_data(raw: str, limit: int = 6000):
+    """Tool result as JSON for the UI's data cards (parsed if possible, capped)."""
+    if len(raw) > limit:
+        raw = raw[:limit]
+    try:
+        return json.loads(raw)
+    except (json.JSONDecodeError, TypeError):
+        return {"text": raw}
+
+
+VOICE_CHANNEL_HINT = (
+    "\n\n[spoken channel: the answer will be read aloud by a voice agent. "
+    "Use your tools exactly as usual BEFORE stating any fact (check_sla for "
+    "any response/resolution time, search_kb for procedures, lookup_asset, "
+    "create_incident). Then reply in at most three short plain sentences, "
+    "no markdown, no lists, no headings, in the same language as the request.]"
+)
+
+
+def _run_chat_pipeline(
+    user_message: str,
+    session_id: str,
+    channel: str = "text",
+    progress=None,
+) -> dict:
+    """Core pipeline: pre-process -> LLM+tools -> post-process. Returns result dict.
+
+    channel: "text" (threads, CLI) or "voice" (GPT-Live client delegation — the
+    result is spoken, so the agent is asked for a short plain answer and the
+    audit record is marked so the guardrail chart can show that voice traffic
+    went through the full pipeline).
+    progress: optional callback(stage: str, detail: dict) invoked from the
+    worker thread as the pipeline advances (used to narrate tool calls to the
+    voice agent and the UI while the caller keeps talking).
+    """
+    t_start = time.monotonic()
+    trace = {"llm_calls": 0, "tools": [], "stages": {}}
+
+    def _report(stage: str, **detail):
+        if progress:
+            try:
+                progress(stage, detail)
+            except Exception:  # never let UI narration break the pipeline
+                logger.debug("progress callback failed", exc_info=True)
+
     with tracer.start_as_current_span(
         "chat_request",
         attributes={
             "mu.session_id": session_id,
             "mu.mode": MODE,
+            "mu.channel": channel,
             "mu.user_message_length": len(user_message),
         },
     ) as root_span:
 
         # Layer 1: Pre-process (input filters)
+        t0 = time.monotonic()
         with tracer.start_as_current_span(
             "guardrail.pre_process",
             attributes={"guardrail.layer": "input_filter"},
@@ -120,21 +171,45 @@ def _run_chat_pipeline(user_message: str, session_id: str) -> dict:
                 pre_span.set_attribute(
                     "guardrail.triggers", json.dumps(pre_result.guardrail_triggers)
                 )
+        trace["stages"]["pre_filter_ms"] = int((time.monotonic() - t0) * 1000)
+        _report("pre_filter", allowed=pre_result.allowed,
+                triggers=list(pre_result.guardrail_triggers))
+
+        if channel == "voice":
+            # Marks the audit record: this voice turn DID pass the guardrails
+            # (contrast with the realtime channel, which bypasses them).
+            pre_result.guardrail_triggers.append("channel_voice_live: guardrails applied")
 
         if not pre_result.allowed:
             root_span.set_attribute("mu.blocked_by", "input_filter")
             root_span.set_attribute("mu.guardrail_triggers",
                                     json.dumps(pre_result.guardrail_triggers))
+            trace["stages"]["total_ms"] = int((time.monotonic() - t_start) * 1000)
             return {
                 "response": pre_result.response,
                 "tool_calls": [],
                 "guardrail_triggers": pre_result.guardrail_triggers,
                 "judge_verdict": "PASS",
+                "blocked_by": "input_filter",
+                "trace": trace,
             }
 
         # Build conversation history
         messages = get_or_create(session_id)
-        messages.append({"role": "user", "content": pre_result.sanitized_input})
+        user_content = pre_result.sanitized_input
+        if channel == "voice":
+            user_content += VOICE_CHANNEL_HINT
+        messages.append({"role": "user", "content": user_content})
+
+        # Grounding from EARLIER turns of this session: tool results already in
+        # the history are context the model legitimately answers from ("what's
+        # the resolution time?" two turns after check_sla ran). Gate 2 and the
+        # judge must see them too, or a correctly remembered number gets
+        # blocked as a fabrication.
+        prior_tool_results = [
+            {"name": "earlier_turn", "arguments": {}, "result": m.get("content", "")}
+            for m in messages[:-1] if m.get("role") == "tool" and m.get("content")
+        ][-8:]
 
         # LLM call with tool use loop
         client = get_client()
@@ -145,8 +220,10 @@ def _run_chat_pipeline(user_message: str, session_id: str) -> dict:
         llm_call_count = 0
         total_prompt_tokens = 0
         total_completion_tokens = 0
+        llm_seconds = 0.0
 
         for iteration in range(max_iterations):
+            _report("llm_call", iteration=iteration, model=model)
             with tracer.start_as_current_span(
                 "gen_ai.chat",
                 attributes={
@@ -168,6 +245,7 @@ def _run_chat_pipeline(user_message: str, session_id: str) -> dict:
                     max_tokens=1024,
                 )
                 duration = time.monotonic() - t0
+                llm_seconds += duration
                 llm_call_count += 1
                 choice = resp.choices[0]
 
@@ -201,6 +279,8 @@ def _run_chat_pipeline(user_message: str, session_id: str) -> dict:
                     except json.JSONDecodeError:
                         fn_args = {}
 
+                    _report("tool_start", name=fn_name, arguments=fn_args)
+                    t_tool = time.monotonic()
                     with tracer.start_as_current_span(
                         f"tool.{fn_name}",
                         attributes={
@@ -210,7 +290,11 @@ def _run_chat_pipeline(user_message: str, session_id: str) -> dict:
                     ) as tool_span:
                         handler = TOOL_HANDLERS.get(fn_name)
                         if handler:
-                            tool_result = handler(fn_args)
+                            try:
+                                tool_result = handler(fn_args)
+                            except Exception as e:  # bad args from the model, DB hiccup
+                                tool_result = json.dumps({"error": f"{fn_name} failed: {e}"})
+                                tool_span.set_attribute("mu.tool.error", True)
                             logger.info("Tool call: %s(%s)", fn_name, fn_args)
                         else:
                             tool_result = json.dumps({"error": f"Unknown tool: {fn_name}"})
@@ -219,6 +303,10 @@ def _run_chat_pipeline(user_message: str, session_id: str) -> dict:
                         tool_span.set_attribute(
                             "mu.tool.result_length", len(tool_result)
                         )
+                    tool_ms = int((time.monotonic() - t_tool) * 1000)
+                    trace["tools"].append({"name": fn_name, "ms": tool_ms})
+                    _report("tool_done", name=fn_name, arguments=fn_args, ms=tool_ms,
+                            result=tool_result[:300], data=_tool_data(tool_result))
 
                     all_tool_calls.append(
                         {"name": fn_name, "arguments": fn_args, "result": tool_result}
@@ -261,6 +349,8 @@ def _run_chat_pipeline(user_message: str, session_id: str) -> dict:
                     "mu.llm_call_type": "forced_final",
                 },
             ) as final_span:
+                _report("llm_call", iteration=llm_call_count, model=model, forced_final=True)
+                t_final = time.monotonic()
                 resp = client.chat.completions.create(
                     model=model,
                     messages=messages,
@@ -269,6 +359,7 @@ def _run_chat_pipeline(user_message: str, session_id: str) -> dict:
                 )
                 assistant_content = resp.choices[0].message.content or ""
                 llm_call_count += 1
+                llm_seconds += time.monotonic() - t_final
                 if resp.usage:
                     total_prompt_tokens += resp.usage.prompt_tokens or 0
                     total_completion_tokens += resp.usage.completion_tokens or 0
@@ -291,7 +382,13 @@ def _run_chat_pipeline(user_message: str, session_id: str) -> dict:
                 cut -= 1
             _conversations[session_id] = [messages[0]] + messages[cut:]
 
+        trace["llm_calls"] = llm_call_count
+        trace["stages"]["llm_ms"] = int(llm_seconds * 1000)
+        trace["tokens"] = {"prompt": total_prompt_tokens, "completion": total_completion_tokens}
+        _report("judge_start")
+
         # Layers 2 & 3: Post-process (output validation + LLM judge)
+        t_post = time.monotonic()
         with tracer.start_as_current_span(
             "guardrail.post_process",
             attributes={"guardrail.layer": "output_validation_and_judge"},
@@ -303,6 +400,7 @@ def _run_chat_pipeline(user_message: str, session_id: str) -> dict:
                 context_chunks=context_chunks,
                 tool_calls=all_tool_calls,
                 pre_triggers=pre_result.guardrail_triggers,
+                prior_tool_results=prior_tool_results,
             )
             post_span.set_attribute(
                 "guardrail.judge_verdict",
@@ -312,6 +410,12 @@ def _run_chat_pipeline(user_message: str, session_id: str) -> dict:
                 post_span.set_attribute(
                     "guardrail.triggers", json.dumps(post_result.guardrail_triggers)
                 )
+        trace["stages"]["post_ms"] = int((time.monotonic() - t_post) * 1000)
+        trace["stages"]["total_ms"] = int((time.monotonic() - t_start) * 1000)
+        trace["judge"] = {
+            "verdict": post_result.judge_verdict.get("verdict", "PASS"),
+            "reason": (post_result.judge_verdict.get("reason") or "")[:240],
+        }
 
         # Set summary attributes on root span
         root_span.set_attribute("gen_ai.request.model", model)
@@ -331,7 +435,7 @@ def _run_chat_pipeline(user_message: str, session_id: str) -> dict:
 
         record_llm_usage(
             "agent", model, total_prompt_tokens, total_completion_tokens,
-            0.0, session_id=session_id,
+            llm_seconds, session_id=session_id,
         )
 
         # Synthetic incidents from tools land on the live dashboard immediately
@@ -348,8 +452,15 @@ def _run_chat_pipeline(user_message: str, session_id: str) -> dict:
                 {"name": tc["name"], "arguments": tc["arguments"]}
                 for tc in all_tool_calls
             ],
+            # Full results for the UI's data cards (the audit log has them too)
+            "tool_results": [
+                {"name": tc["name"], "arguments": tc["arguments"], "data": _tool_data(tc["result"])}
+                for tc in all_tool_calls
+            ],
             "guardrail_triggers": post_result.guardrail_triggers,
             "judge_verdict": post_result.judge_verdict.get("verdict", "PASS"),
+            "blocked_by": "judge" if not post_result.allowed else None,
+            "trace": trace,
         }
 
 
@@ -362,7 +473,13 @@ async def chat(request: Request) -> JSONResponse:
     if not user_message:
         return JSONResponse({"error": "Empty message"}, status_code=400)
 
-    result = _run_chat_pipeline(user_message, session_id)
+    # The pipeline is synchronous (sequential LLM calls); run it off the event
+    # loop so telemetry, sentinel and websocket pushes keep flowing meanwhile.
+    try:
+        result = await asyncio.to_thread(_run_chat_pipeline, user_message, session_id)
+    except Exception as e:
+        logger.exception("chat pipeline failed")
+        return JSONResponse({"error": f"pipeline failed: {e}"}, status_code=502)
     return JSONResponse(result)
 
 
@@ -379,14 +496,21 @@ async def chat_stream(request: Request):
         return StreamingResponse(error_stream(), media_type="text/event-stream")
 
     async def event_stream():
-        result = await asyncio.to_thread(_run_chat_pipeline, user_message, session_id)
+        try:
+            result = await asyncio.to_thread(_run_chat_pipeline, user_message, session_id)
+        except Exception as e:
+            logger.exception("chat pipeline failed")
+            yield f"data: {json.dumps({'type': 'error', 'content': f'pipeline failed: {e}'})}\n\n"
+            return
 
         # Send metadata first
         meta = {
             "type": "meta",
             "tool_calls": result["tool_calls"],
+            "tool_results": result.get("tool_results", []),
             "guardrail_triggers": result["guardrail_triggers"],
             "judge_verdict": result["judge_verdict"],
+            "trace": result.get("trace"),
         }
         yield f"data: {json.dumps(meta)}\n\n"
 
@@ -415,15 +539,22 @@ async def status() -> JSONResponse:
     from app.config import LLM_BASE_URL, LLM_MODEL, MODE
     from app.llm_client import get_role_client
 
+    from app.voice_live import voice_mode_state
+
     roles = {}
     for role in ROLES:
         _, resolved_model = get_role_client(role) if role != "voice" else (None, ROLES[role].get("model", ""))
         roles[role] = resolved_model
+    vm = voice_mode_state()
+    roles["voice"] = vm["model"]
     return JSONResponse({
         "mode": MODE,
         "model": LLM_MODEL,
         "base_url": LLM_BASE_URL,
         "voice_available": voice_available(),
+        "voice_mode": vm["mode"],
+        "voice_model": vm["model"],
+        "voice_guardrails": vm["guardrails"],
         "simulation_running": simulation.running,
         "roles": roles,
     })

@@ -50,6 +50,25 @@ def escalate_ticket(ticket_id: str, reason: str) -> str:
 
 
 @mcp.tool()
+def list_incidents(status: str = "open", limit: int = 10) -> str:
+    """List incident tickets newest first. status: open/escalated/resolved/all."""
+    return incidents.list_incidents(status=status, limit=limit)
+
+
+@mcp.tool()
+def get_incident(ticket_id: str) -> str:
+    """Details and status of one ticket by id (e.g. INC-00003)."""
+    return incidents.get_incident(ticket_id=ticket_id)
+
+
+@mcp.tool()
+def audit_report(hours: int = 24, limit: int = 5) -> str:
+    """This assistant's own guardrail audit: trigger counts and recent flagged interactions."""
+    from app.tools.audit_report import audit_report as _report
+    return _report(hours=hours, limit=limit)
+
+
+@mcp.tool()
 def search_kb(query: str) -> str:
     """Search the knowledge base for relevant articles, troubleshooting steps, policies, and procedures."""
     try:

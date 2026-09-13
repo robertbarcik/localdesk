@@ -39,6 +39,59 @@ def create_incident(summary: str, priority: str, category: str, reporter_name: s
         conn.close()
 
 
+def list_incidents(status: str = "open", limit: int = 10) -> str:
+    """Open / escalated / resolved / all tickets, newest first."""
+    status = (status or "open").lower()
+    try:
+        limit = max(1, min(int(limit), 25))
+    except (TypeError, ValueError):
+        limit = 10
+    conn = _get_conn()
+    try:
+        cur = conn.cursor()
+        if status == "all":
+            cur.execute(
+                "SELECT ticket_id, summary, priority, category, status, reporter_name, created_at "
+                "FROM incidents ORDER BY created_at DESC LIMIT ?", (limit,))
+        else:
+            cur.execute(
+                "SELECT ticket_id, summary, priority, category, status, reporter_name, created_at "
+                "FROM incidents WHERE status = ? ORDER BY created_at DESC LIMIT ?", (status, limit))
+        rows = cur.fetchall()
+        total = conn.execute(
+            "SELECT COUNT(*) FROM incidents" + ("" if status == "all" else " WHERE status = ?"),
+            () if status == "all" else (status,),
+        ).fetchone()[0]
+    finally:
+        conn.close()
+    return json.dumps({
+        "status_filter": status,
+        "total_matching": total,
+        "tickets": [
+            {"ticket_id": r[0], "summary": r[1], "priority": r[2], "category": r[3],
+             "status": r[4], "reporter": r[5], "created_at": r[6]}
+            for r in rows
+        ],
+    })
+
+
+def get_incident(ticket_id: str) -> str:
+    conn = _get_conn()
+    try:
+        row = conn.execute(
+            "SELECT ticket_id, summary, priority, category, status, reporter_name, created_at, "
+            "escalation_reason, escalated_at FROM incidents WHERE ticket_id = ?",
+            (ticket_id.upper().strip(),),
+        ).fetchone()
+    finally:
+        conn.close()
+    if not row:
+        return json.dumps({"error": f"Ticket {ticket_id} not found."})
+    keys = ("ticket_id", "summary", "priority", "category", "status", "reporter",
+            "created_at", "escalation_reason", "escalated_at")
+    return json.dumps(dict(zip(keys, row)))
+
+
 def escalate_ticket(ticket_id: str, reason: str) -> str:
     conn = _get_conn()
     try:

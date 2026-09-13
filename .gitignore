@@ -12,6 +12,7 @@ dist/
 build/
 vectorstore/
 logs/
+logs/voice/
 data/db/*.db
 data/db/*.db-shm
 data/db/*.db-wal

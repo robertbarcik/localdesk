@@ -39,6 +39,16 @@ OPENAI_API_KEY: str = _expand(_openai_cfg.get("api_key", ""))
 
 ROLES: dict = _raw.get("roles", {})
 
+# Voice channel: "live" = gpt-live-1 with client delegation (tools run through
+# the guardrail pipeline while the model keeps talking); "realtime" = the older
+# gpt-realtime path (browser bridge, guardrails bypassed). Switchable at runtime.
+_voice_cfg = _raw.get("voice", {})
+VOICE_MODE_DEFAULT: str = _voice_cfg.get("mode", "live")
+VOICE_LIVE_MODEL: str = _voice_cfg.get("live_model", "gpt-live-1")
+VOICE_REALTIME_MODEL: str = _voice_cfg.get("realtime_model", "gpt-realtime-2.1-mini")
+VOICE_TRANSCRIPTION_MODEL: str = _voice_cfg.get("transcription_model", "gpt-live-transcribe")
+VOICE_NAME: str = _voice_cfg.get("voice", "marin")
+
 _sim_cfg = _raw.get("simulation", {})
 SENTINEL_CADENCE_S: int = _sim_cfg.get("sentinel_cadence_s", 25)
 MAX_EVENTS_PER_MIN: int = _sim_cfg.get("max_events_per_min", 12)

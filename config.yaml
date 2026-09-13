@@ -5,7 +5,7 @@ mode: "cloud"
 
 local:
   base_url: "http://localhost:11434/v1"
-  model: "qwen3:1.7b"
+  model: "qwen3.5:4b"
   api_key: "not-needed"
 
 cloud:
@@ -25,7 +25,22 @@ roles:
   sentinel:   { provider: openai, model: gpt-5.4-nano }
   writer:     { provider: openai, model: gpt-5.4-mini }
   audit_chat: { provider: openai, model: gpt-5.4-nano }
-  voice:      { provider: openai, model: gpt-realtime-2.1-mini }
+  voice:      { provider: openai, model: gpt-live-1 }   # informational; see `voice:` below
+
+# Voice channel.
+#   live     - gpt-live-1 (full duplex). The model keeps listening and talking
+#              while it delegates the task to OUR backend: the request runs
+#              through the normal 3-layer guardrail pipeline + tools, and the
+#              result is handed back for the model to speak. Billed per second.
+#   realtime - the older gpt-realtime path: tools bridged from the browser,
+#              guardrails bypassed (kept as a fallback and as a teaching contrast).
+# The mode can also be switched at runtime (shift-click the voice orb).
+voice:
+  mode: "live"
+  live_model: "gpt-live-1"
+  realtime_model: "gpt-realtime-2.1-mini"
+  transcription_model: "gpt-live-transcribe"   # realtime path only; whisper-1 is deprecated
+  voice: "marin"
 
 # Ops simulation + sentinel pacing
 simulation:

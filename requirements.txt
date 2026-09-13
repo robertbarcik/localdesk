@@ -1,6 +1,7 @@
 fastapi==0.115.6
 uvicorn[standard]==0.34.0
-openai==1.58.1
+openai==3.13.0          # Live API (gpt-live-1 sessions + sideband) needs >= 3.x
+websockets>=13,<18      # sideband / primary WebSocket transport for the openai SDK
 chromadb==0.5.23
 pyyaml==6.0.2
 httpx==0.28.1

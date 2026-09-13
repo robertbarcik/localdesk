@@ -24,7 +24,7 @@ pip install -q -r requirements.txt
 echo "Pulling Ollama models..."
 if command -v ollama &>/dev/null; then
     ollama pull nomic-embed-text 2>/dev/null || echo "Note: Could not pull nomic-embed-text. Make sure Ollama is running."
-    ollama pull qwen3:1.7b 2>/dev/null || echo "Note: Could not pull qwen3:1.7b. Make sure Ollama is running."
+    ollama pull qwen3.5:4b 2>/dev/null || echo "Note: Could not pull qwen3.5:4b. Make sure Ollama is running."
 else
     echo "Warning: Ollama not found. Install from https://ollama.com and re-run setup."
 fi

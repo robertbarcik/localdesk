@@ -16,7 +16,12 @@ import httpx
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
-from app.config import OPENAI_API_KEY, ROLES
+from app.config import (
+    OPENAI_API_KEY,
+    VOICE_NAME,
+    VOICE_REALTIME_MODEL,
+    VOICE_TRANSCRIPTION_MODEL,
+)
 from app.guardrails.audit import log_interaction
 from app.tools.definitions import TOOLS
 from app.ws_hub import hub
@@ -27,7 +32,7 @@ router = APIRouter()
 
 CLIENT_SECRETS_URL = "https://api.openai.com/v1/realtime/client_secrets"
 
-VOICE_MODEL = ROLES.get("voice", {}).get("model", "gpt-realtime-2.1-mini")
+VOICE_MODEL = VOICE_REALTIME_MODEL
 
 
 # Screen-control tools executed by the BROWSER, not this backend — they let
@@ -98,9 +103,11 @@ async def mint_session():
             "audio": {
                 "input": {
                     "turn_detection": {"type": "semantic_vad"},
-                    "transcription": {"model": "whisper-1"},
+                    # whisper-1 was deprecated 2026-08-26; gpt-live-transcribe
+                    # is the streaming replacement (verified accepted here).
+                    "transcription": {"model": VOICE_TRANSCRIPTION_MODEL},
                 },
-                "output": {"voice": "marin"},
+                "output": {"voice": VOICE_NAME},
             },
         },
     }
