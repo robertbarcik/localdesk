@@ -1,0 +1,13 @@
+# Template, filled in by deploy/setup.sh: {HOST} -> public hostname,
+# {HASH_ROBERT} / {HASH_STUDENT} -> bcrypt of ADMIN_PASSWORD / APP_PASSWORD from .env.
+# Caddy fetches and renews the TLS certificate itself (Let's Encrypt) as long as ports 80/443 are open.
+{HOST} {
+	basicauth {
+		robert {HASH_ROBERT}
+		student {HASH_STUDENT}
+	}
+	# /api/chat-stream is SSE and /ws is a WebSocket: flush every chunk immediately
+	reverse_proxy 127.0.0.1:7860 {
+		flush_interval -1
+	}
+}

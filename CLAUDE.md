@@ -21,6 +21,11 @@ LocalDesk is an AI-powered IT service desk prototype used in enterprise training
 
 ## How to Run
 
+**Public demo instance (since 2026-09-16):** https://18-198-245-243.sslip.io on a mim-lab t3.small
+behind Caddy basic auth (`student` for participants, `robert` for Robert; passwords in `.env`).
+Everything about it — IDs, rsync-and-restart, stop/start, teardown — is in `deploy/README.md`.
+Check the instance still exists before assuming the URL works.
+
 ```bash
 ./setup.sh        # venv (prefers python3.13/3.12), deps, ollama pulls, seed, ingest
 ./run.sh          # web UI on http://localhost:7860
