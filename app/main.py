@@ -19,7 +19,7 @@ from app.config import DATABASE_PATH, MODE, ROLES, SERVER_HOST, SERVER_PORT
 from app.conversations import _conversations, get_or_create
 from app.db import ensure_schema
 from app.guardrails.pipeline import post_process, pre_process
-from app.llm_client import get_client, get_model, voice_available
+from app.llm_client import chat_kwargs, get_client, get_model, voice_available
 from app.ops.metrics import record_llm_usage
 from app.ops.metrics import router as metrics_router
 from app.ops.sentinel import router as sentinel_router
@@ -241,8 +241,7 @@ def _run_chat_pipeline(
                     model=model,
                     messages=messages,
                     tools=TOOLS,
-                    temperature=0.3,
-                    max_tokens=1024,
+                    **chat_kwargs(model, max_tokens=1024, temperature=0.3, tools=True),
                 )
                 duration = time.monotonic() - t0
                 llm_seconds += duration
@@ -354,8 +353,7 @@ def _run_chat_pipeline(
                 resp = client.chat.completions.create(
                     model=model,
                     messages=messages,
-                    temperature=0.3,
-                    max_tokens=1024,
+                    **chat_kwargs(model, max_tokens=1024, temperature=0.3),
                 )
                 assistant_content = resp.choices[0].message.content or ""
                 llm_call_count += 1

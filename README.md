@@ -171,7 +171,7 @@ Three decisions here are the ones people argue about:
 **Ask the room:** *"Same model judging itself?"* By default yes (judge follows `mode`), and
 it still catches things — in testing it blocked *"the response time is 15 minutes"* when the
 agent had *not* called `check_sla`, correct number or not. Switching the judge to a different
-family is one line in `config.yaml` (`judge: { provider: openai, model: gpt-5.4-mini }`).
+family is one line in `config.yaml` (`judge: { provider: openai, model: gpt-6.1-sol }`).
 
 ### The audit record (`guardrails/audit.py`, `logs/audit.jsonl`)
 
@@ -202,10 +202,17 @@ block today?"* works in a thread, by voice, and in the Ω meta-chat alike.
 |---|---|---|---|
 | agent | follows `mode` | the desk conversation | the star; local 4B or cloud 30B-A3B |
 | judge | follows `mode` | gate 3 | must see every answer; cheap enough to run always |
-| sentinel | gpt-5.4-nano | watches the event stream every ~25 s | runs constantly → cheapest |
-| writer | gpt-5.4-mini | handover briefing, cluster labels | prose quality matters, runs rarely |
-| audit_chat | gpt-5.4-nano | meta-chat over the audit log | simple tool calling |
+| sentinel | gpt-6-luna | watches the event stream every ~25 s | runs constantly → cheapest |
+| writer | gpt-6.1-sol | handover briefing, cluster labels | prose quality matters, runs rarely |
+| audit_chat | gpt-6-luna | meta-chat over the audit log | simple tool calling |
 | voice | gpt-live-1 | the spoken channel | billed per second, not per token |
+
+**Why luna everywhere tools are involved:** OpenAI's gpt-6 line comes in tiers (astra / sol /
+luna), and on the Chat Completions API a gpt-6 model accepts function tools only with
+`reasoning_effort: "none"`, which only luna supports. Sol and astra can call tools only through
+the Responses API. LocalDesk speaks Chat Completions so the same code runs against Ollama and
+OpenRouter, so the agent and `audit_chat` stay on luna; the writer never calls tools and can
+afford sol. (`chat_kwargs(..., tools=True)` in `llm_client.py` adds the effort flag.)
 
 `get_role_client(role)` returns `(client, model)` and **falls back to the agent client** when a role
 wants OpenAI and there is no key — the whole system keeps working with one key or none.

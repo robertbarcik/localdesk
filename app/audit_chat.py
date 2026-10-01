@@ -173,7 +173,7 @@ def _run_audit_chat(message: str, session_id: str) -> dict:
                     model=model,
                     messages=messages,
                     tools=AUDIT_TOOLS,
-                    **chat_kwargs(model, max_tokens=900, temperature=0.1),
+                    **chat_kwargs(model, max_tokens=900, temperature=0.1, tools=True),
                 )
                 duration = time.monotonic() - t0
                 span.set_attribute("mu.llm_duration_s", round(duration, 3))

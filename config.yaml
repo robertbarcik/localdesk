@@ -1,7 +1,7 @@
 # LocalDesk Configuration
-# Switch between "local" and "cloud" mode
+# Switch between "local", "cloud" (OpenRouter) and "openai" mode
 
-mode: "cloud"
+mode: "openai"
 
 local:
   base_url: "http://localhost:11434/v1"
@@ -13,18 +13,21 @@ cloud:
   model: "qwen/qwen3-30b-a3b"
   api_key: "${OPENROUTER_API_KEY}"
 
-# OpenAI (background roles + voice). Missing key => roles fall back to the agent model.
+# OpenAI (background roles + voice; also the whole agent when mode: "openai"). Missing key => roles fall back to the agent model.
 openai:
   base_url: "https://api.openai.com/v1"
+  model: "gpt-6-luna"     # agent + judge model when mode: "openai" (tools need luna, see roles)
   api_key: "${OPENAI_API_KEY}"
 
-# Per-role model routing. provider "mode" follows the local/cloud switch above.
+# Per-role model routing. provider "mode" follows the local/cloud/openai switch above.
+# gpt-6 tiers: luna (cheapest, the only tier that can call tools on Chat Completions),
+# sol (balanced, prose), astra (flagship). Tool-using roles (agent, audit_chat) => luna.
 roles:
   agent:      { provider: mode }
-  judge:      { provider: mode }   # override: { provider: openai, model: gpt-5.4-mini }
-  sentinel:   { provider: openai, model: gpt-5.4-nano }
-  writer:     { provider: openai, model: gpt-5.4-mini }
-  audit_chat: { provider: openai, model: gpt-5.4-nano }
+  judge:      { provider: mode }   # override: { provider: openai, model: gpt-6.1-sol }
+  sentinel:   { provider: openai, model: gpt-6-luna }
+  writer:     { provider: openai, model: gpt-6.1-sol }
+  audit_chat: { provider: openai, model: gpt-6-luna }
   voice:      { provider: openai, model: gpt-live-1 }   # informational; see `voice:` below
 
 # Voice channel.

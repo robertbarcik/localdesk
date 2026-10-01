@@ -6,8 +6,8 @@ LocalDesk is an AI-powered IT service desk prototype used in enterprise training
 
 ## Tech Stack
 
-- **Main LLM**: Qwen via Ollama (local, `qwen3.5:4b`, 40–60 s/turn) or OpenRouter (cloud, `qwen/qwen3-30b-a3b`)
-- **Background roles**: OpenAI minis (`gpt-5.4-nano` sentinel/audit, `gpt-5.4-mini` writer) — fall back to the agent model without a key
+- **Main LLM** (`config.yaml → mode`): Qwen via Ollama (`local`, `qwen3.5:4b`, 40–60 s/turn), OpenRouter (`cloud`, `qwen/qwen3-30b-a3b`) or OpenAI (`openai`, `gpt-6-luna`)
+- **Background roles**: OpenAI gpt-6 (`gpt-6-luna` sentinel/audit, `gpt-6.1-sol` writer) — fall back to the agent model without a key. Tool-using roles must stay on luna: gpt-6 + tools on Chat Completions requires `reasoning_effort: none`, which sol/astra don't support (`chat_kwargs(tools=True)`).
 - **Voice, two generations** (runtime switch, shift-click the orb; default `config.yaml → voice.mode: live`):
   - `live` = **gpt-live-1** via the Live API (`POST /v1/live/sessions` with the browser's SDP, backend attaches a sideband WS, CLIENT delegation → our guardrail pipeline runs the tools while the model keeps talking). `app/voice_live.py`.
   - `realtime` = gpt-realtime-2.1-mini over WebRTC (GA `client_secrets` flow, browser tool bridge, guardrails bypassed — kept as fallback + teaching contrast). `app/voice.py`.

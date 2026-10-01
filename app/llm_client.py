@@ -53,13 +53,24 @@ def voice_available() -> bool:
     return bool(OPENAI_API_KEY)
 
 
-def chat_kwargs(model: str, max_tokens: int, temperature: float) -> dict:
+def chat_kwargs(model: str, max_tokens: int, temperature: float, *, tools: bool = False) -> dict:
     """Sampling kwargs compatible with the model's provider.
 
-    The gpt-5 family rejects `max_tokens` (wants `max_completion_tokens`)
-    and only supports the default temperature; Ollama/OpenRouter models
-    take the classic parameters.
+    The gpt-5/gpt-6 families reject `max_tokens` (want `max_completion_tokens`)
+    and only support the default temperature; Ollama/OpenRouter models take
+    the classic parameters.
+
+    gpt-6 on /v1/chat/completions accepts function tools ONLY with
+    `reasoning_effort: "none"` (verified 2026-09-30: any other effort → 400
+    "use /v1/responses or set reasoning_effort to 'none'"). Only the luna tier
+    supports "none"; sol/astra cannot call tools here at all — tool-using
+    roles must stay on luna unless the call site moves to the Responses API.
     """
+    if model.startswith("gpt-6"):
+        kw = {"max_completion_tokens": max_tokens}
+        if tools:
+            kw["reasoning_effort"] = "none"
+        return kw
     if model.startswith("gpt-"):
         return {"max_completion_tokens": max_tokens}
     return {"max_tokens": max_tokens, "temperature": temperature}

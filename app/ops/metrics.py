@@ -19,6 +19,8 @@ MODEL_COSTS = {  # USD per 1M tokens (input, output) — update at demo time
     "qwen/qwen3-30b-a3b":    (0.12, 0.50),
     "gpt-5.4-nano":          (0.20, 1.25),
     "gpt-5.4-mini":          (0.75, 4.50),
+    "gpt-6-luna":            (0.10, 0.50),   # prices as of 2026-09-22 cut
+    "gpt-6.1-sol":           (2.00, 10.00),
     "gpt-realtime-2.1-mini": (0.60, 2.40),  # text-token proxy; voice cost shown as approx
 }
 # gpt-live-1 is billed by duration, not tokens: $0.05 per minute, per second.
